@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+requests
+mercadopago
+python-dotenv
+jinja2
+python-multipart
+yt-dlp>=2024.08.01
