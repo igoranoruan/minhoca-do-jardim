@@ -1,0 +1,29 @@
+# Ambiente local
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+
+# Banco e arquivos gerados localmente
+*.db
+*.sqlite
+*.sqlite3
+downloads/
+
+# Git / editor
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Arquivos de auditoria e testes locais
+comparacao_*.txt
+*_check.js
+*.rar

@@ -70,9 +70,9 @@
         </div>
 
         <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-3 text-white leading-tight">
-            SEU VÍDEO.<br>
+            SEU VÍDEO LIMPO.<br>
             <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">
-                LIMPO. PRONTO PRA POSTAR.
+                PRONTO PRA POSTAR.
             </span>
         </h1>
 
@@ -137,7 +137,7 @@
                 <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Semanal</div>
                 <div class="text-3xl font-extrabold text-white mb-1">R$ 9,90</div>
                 <div class="text-[11px] text-emerald-500 font-medium mb-4">
-                    Renovação a cada 7 dias
+                    7 dias • Pix manual ou cartão recorrente
                 </div>
 
                 <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
@@ -171,7 +171,7 @@
                 <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Mensal</div>
                 <div class="text-3xl font-extrabold text-white mb-1">R$ 16,90</div>
                 <div class="text-[11px] text-emerald-400 font-medium mb-4">
-                    Renovação mensal
+                    30 dias • Pix manual ou cartão recorrente
                 </div>
 
                 <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
@@ -205,7 +205,7 @@
                 <div class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">VIP Batch</div>
                 <div class="text-3xl font-extrabold text-white mb-1">R$ 29,90</div>
                 <div class="text-[11px] text-amber-400 font-medium mb-4">
-                    Renovação mensal
+                    30 dias • Pix manual ou cartão recorrente
                 </div>
 
                 <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
@@ -278,28 +278,28 @@ https://www.youtube.com/shorts/..."
     <p class="text-center text-xs text-gray-500 mb-6">
         <i class="fa-solid fa-lock text-emerald-500"></i>
         Pagamento processado pelo Mercado Pago.
-        A assinatura renova automaticamente até ser cancelada.
+        Pix não renova automaticamente; cartão pode renovar conforme o plano.
     </p>
 </main>
 
 <div id="modalPagamento"
     class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50 animate-fade">
-    <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-emerald-500/30 text-center relative shadow-2xl">
+    <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-emerald-500/30 text-center relative shadow-2xl max-h-[90vh] overflow-y-auto">
         <button onclick="fecharModalPagamento()"
             class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all">
             <i class="fa-solid fa-xmark text-lg"></i>
         </button>
 
         <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center mb-4">
-            <i class="fa-solid fa-credit-card text-emerald-400 text-xl"></i>
+            <i class="fa-solid fa-wallet text-emerald-400 text-xl"></i>
         </div>
 
         <h3 id="modalTitulo" class="text-xl font-bold text-white mb-1">
-            Ativar assinatura
+            Escolha como pagar
         </h3>
 
         <p id="modalDescricao" class="text-xs text-gray-400 mb-5">
-            Você será levado ao checkout seguro do Mercado Pago.
+            Escolha Pix para pagar uma vez ou cartão para ativar a renovação automática.
         </p>
 
         <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-4 text-left mb-4">
@@ -313,17 +313,60 @@ https://www.youtube.com/shorts/..."
             </div>
         </div>
 
-        <button id="checkoutButton" onclick="irParaCheckout()"
-            class="w-full py-3.5 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-lg">
-            Continuar para o Mercado Pago
-        </button>
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <button id="metodoPixBtn" onclick="trocarMetodoPagamento('pix')"
+                class="py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all">
+                <i class="fa-solid fa-qrcode mr-1"></i> PIX
+                <span class="block text-[9px] font-medium text-gray-400 mt-0.5">Sem renovação automática</span>
+            </button>
+            <button id="metodoCartaoBtn" onclick="trocarMetodoPagamento('cartao')"
+                class="py-3 rounded-xl border border-gray-800 bg-gray-950/50 text-gray-400 text-xs font-extrabold transition-all">
+                <i class="fa-solid fa-credit-card mr-1"></i> CARTÃO
+                <span class="block text-[9px] font-medium text-gray-500 mt-0.5">Renovação automática</span>
+            </button>
+        </div>
 
-        <p class="text-[10px] text-gray-500 mt-3 leading-relaxed">
-            A cobrança é recorrente conforme o plano escolhido.
-            Você pode cancelar a renovação e continuar usando até o fim do período já pago.
-        </p>
+        <div id="conteudoPix">
+            <div class="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4 mb-3">
+                <div id="pixQrContainer" class="bg-white rounded-xl p-3 min-h-12 flex items-center justify-center mb-3">
+                    <span class="text-xs text-gray-500">Clique em gerar Pix.</span>
+                </div>
+                <input id="pixCopiaCola" type="text" readonly
+                    class="w-full bg-gray-950 border border-gray-800 text-[10px] p-3 rounded-xl text-gray-300 text-center mb-2 focus:outline-none select-all">
+                <button id="gerarPixButton" onclick="gerarPix()"
+                    class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-md">
+                    Gerar Pix
+                </button>
+                <button id="copiarPixButton" onclick="copiarPix()" disabled
+                    class="w-full mt-2 py-2.5 bg-gray-800 text-gray-300 font-bold rounded-xl text-xs hover:bg-gray-700 transition-all disabled:opacity-40">
+                    Copiar Pix Copia e Cola
+                </button>
+            </div>
+            <div id="pixStatus" class="text-xs text-gray-400"></div>
+            <p class="text-[10px] text-gray-500 mt-3 leading-relaxed">
+                O Pix libera o período contratado após a confirmação. Não há cobrança automática.
+            </p>
+        </div>
 
-        <div id="checkoutStatus" class="mt-4 text-xs text-gray-400"></div>
+        <div id="conteudoCartao" class="hidden">
+            <div class="bg-blue-950/20 border border-blue-800/30 rounded-xl p-4 mb-4 text-left">
+                <div class="flex items-start gap-3">
+                    <i class="fa-solid fa-credit-card text-blue-400 mt-0.5"></i>
+                    <div>
+                        <strong class="text-xs text-white block">Pagamento recorrente</strong>
+                        <span class="text-[10px] text-gray-400 leading-relaxed">
+                            O Mercado Pago fará a cobrança conforme a frequência do plano. Você pode cancelar a renovação a qualquer momento.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="checkoutButton" onclick="prepararCheckoutCartao()"
+                class="w-full py-3.5 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-lg">
+                Continuar com cartão
+            </button>
+            <div id="checkoutStatus" class="mt-4 text-xs text-gray-400"></div>
+        </div>
     </div>
 </div>
 
@@ -482,7 +525,7 @@ https://www.youtube.com/shorts/..."
             const status = document.getElementById("assinaturaStatus");
             const cancelar = document.getElementById("cancelarButton");
 
-            if (!res.ok || !data.has_subscription) {
+            if (!res.ok || !data.has_paid_plan) {
                 area.classList.add("hidden");
                 return;
             }
@@ -494,7 +537,11 @@ https://www.youtube.com/shorts/..."
                 ? `${planoInfo.nome} • ${planoInfo.valor}`
                 : data.plan;
 
-            if (data.status === "cancelled") {
+            if (data.payment_type === "pix") {
+                status.textContent =
+                    `Acesso pago via Pix. Sem renovação automática. Válido até ${formatarData(data.expires_at)}.`;
+                cancelar.classList.add("hidden");
+            } else if (data.status === "cancelled") {
                 status.textContent =
                     `Renovação cancelada. Acesso até ${formatarData(data.expires_at)}.`;
                 cancelar.classList.add("hidden");
@@ -504,7 +551,7 @@ https://www.youtube.com/shorts/..."
                 cancelar.classList.add("hidden");
             } else {
                 status.textContent =
-                    `Ativa. Próxima cobrança: ${formatarData(data.next_billing_at)}.`;
+                    `Cartão ativo. Próxima cobrança: ${formatarData(data.next_billing_at)}.`;
                 cancelar.classList.remove("hidden");
             }
         } catch (err) {
@@ -532,7 +579,7 @@ https://www.youtube.com/shorts/..."
         let email = document.getElementById("userEmail").value.trim();
 
         if (!emailValido(email)) {
-            email = prompt("Informe seu e-mail para vincular à assinatura:");
+            email = prompt("Informe seu e-mail para vincular o pagamento:");
 
             if (!email || !emailValido(email.trim())) {
                 return;
@@ -549,14 +596,140 @@ https://www.youtube.com/shorts/..."
         document.getElementById("modalValor").textContent = info.valor;
         document.getElementById("modalDescricao").textContent = info.descricao;
         document.getElementById("checkoutStatus").textContent = "";
+        document.getElementById("pixStatus").textContent = "";
+        document.getElementById("pixQrContainer").innerHTML =
+            '<span class="text-xs text-gray-500">Clique em gerar Pix.</span>';
+        document.getElementById("pixCopiaCola").value = "";
+        document.getElementById("copiarPixButton").disabled = true;
+        document.getElementById("gerarPixButton").disabled = false;
+        document.getElementById("gerarPixButton").textContent = "Gerar Pix";
 
-        checkoutUrlAtual = null;
+        trocarMetodoPagamento("pix");
+        document.getElementById("modalPagamento").classList.remove("hidden");
+    }
 
+    function trocarMetodoPagamento(tipo) {
+        const pixBtn = document.getElementById("metodoPixBtn");
+        const cartaoBtn = document.getElementById("metodoCartaoBtn");
+        const pix = document.getElementById("conteudoPix");
+        const cartao = document.getElementById("conteudoCartao");
+
+        if (tipo === "pix") {
+            pixBtn.className = "py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all";
+            cartaoBtn.className = "py-3 rounded-xl border border-gray-800 bg-gray-950/50 text-gray-400 text-xs font-extrabold transition-all";
+            pix.classList.remove("hidden");
+            cartao.classList.add("hidden");
+        } else {
+            cartaoBtn.className = "py-3 rounded-xl border border-blue-500 bg-blue-950/30 text-blue-400 text-xs font-extrabold transition-all";
+            pixBtn.className = "py-3 rounded-xl border border-gray-800 bg-gray-950/50 text-gray-400 text-xs font-extrabold transition-all";
+            cartao.classList.remove("hidden");
+            pix.classList.add("hidden");
+        }
+    }
+
+    async function gerarPix() {
+        const email = document.getElementById("userEmail").value.trim();
+        const button = document.getElementById("gerarPixButton");
+
+        if (!emailValido(email) || !planoSelecionadoGlobal) return;
+
+        button.disabled = true;
+        button.textContent = "Gerando Pix...";
+        document.getElementById("pixStatus").textContent = "Preparando cobrança...";
+
+        try {
+            const res = await fetch("/api/create-pix", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    plan_type: planoSelecionadoGlobal,
+                    email: email
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.detail || "Não foi possível gerar o Pix.");
+            }
+
+            if (data.qr_code_base64) {
+                document.getElementById("pixQrContainer").innerHTML =
+                    `<img src="data:image/png;base64,${data.qr_code_base64}" alt="QR Code Pix" class="w-52 h-52 mx-auto rounded-lg">`;
+            } else {
+                document.getElementById("pixQrContainer").innerHTML =
+                    '<span class="text-xs text-gray-500">QR Code indisponível. Use o Pix Copia e Cola.</span>';
+            }
+
+            document.getElementById("pixCopiaCola").value = data.qr_code || "";
+            document.getElementById("copiarPixButton").disabled = !data.qr_code;
+            button.textContent = "Pix gerado";
+
+            document.getElementById("pixStatus").innerHTML =
+                '<span class="text-amber-400"><i class="fa-solid fa-clock mr-1"></i>Aguardando pagamento...</span>';
+
+            iniciarMonitoramentoPix(data.payment_id);
+        } catch (err) {
+            button.disabled = false;
+            button.textContent = "Gerar Pix";
+            document.getElementById("pixStatus").textContent =
+                err.message || "Erro ao gerar Pix.";
+        }
+    }
+
+    function iniciarMonitoramentoPix(paymentId) {
+        if (!paymentId) return;
+
+        const email = document.getElementById("userEmail").value.trim();
+        let tentativas = 0;
+        const maxTentativas = 60;
+
+        const timer = setInterval(async () => {
+            tentativas++;
+
+            try {
+                const res = await fetch(
+                    `/api/pix-status?payment_id=${encodeURIComponent(paymentId)}&email=${encodeURIComponent(email)}`
+                );
+                const data = await res.json();
+
+                if (res.ok && data.approved) {
+                    clearInterval(timer);
+                    document.getElementById("pixStatus").innerHTML =
+                        '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Pagamento confirmado! Seu acesso foi liberado.</span>';
+                    await validarEmailNoServidor(email, false);
+                    return;
+                }
+
+                if (res.ok && ["rejected", "cancelled", "refunded", "charged_back"].includes(data.status)) {
+                    clearInterval(timer);
+                    document.getElementById("pixStatus").innerHTML =
+                        `<span class="text-red-400">Pagamento Pix: ${escapeHtml(data.status)}.</span>`;
+                    return;
+                }
+            } catch (err) {
+                console.warn("Falha ao consultar Pix", err);
+            }
+
+            if (tentativas >= maxTentativas) {
+                clearInterval(timer);
+                document.getElementById("pixStatus").textContent =
+                    "Ainda não recebemos a confirmação. Se você já pagou, feche esta janela e ative seu e-mail novamente em alguns instantes.";
+            }
+        }, 5000);
+    }
+
+    async function prepararCheckoutCartao() {
+        const email = document.getElementById("userEmail").value.trim();
         const button = document.getElementById("checkoutButton");
+
+        if (!emailValido(email) || !planoSelecionadoGlobal) return;
+
         button.disabled = true;
         button.textContent = "Preparando checkout...";
-
-        document.getElementById("modalPagamento").classList.remove("hidden");
+        document.getElementById("checkoutStatus").textContent = "";
 
         try {
             const res = await fetch("/api/create-subscription", {
@@ -565,7 +738,7 @@ https://www.youtube.com/shorts/..."
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    plan_type: plano,
+                    plan_type: planoSelecionadoGlobal,
                     email: email
                 })
             });
@@ -585,34 +758,22 @@ https://www.youtube.com/shorts/..."
                 return;
             }
 
-            checkoutUrlAtual = data.checkout_url;
-
-            button.disabled = false;
-            button.textContent = "Continuar para o Mercado Pago";
-
-            if (data.status === "pending") {
-                document.getElementById("checkoutStatus").textContent =
-                    "Checkout pronto. Clique no botão acima para concluir.";
+            if (!data.checkout_url) {
+                throw new Error("Mercado Pago não retornou o checkout.");
             }
+
+            window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+            button.disabled = false;
+            button.textContent = "Abrir checkout novamente";
+            document.getElementById("checkoutStatus").textContent =
+                "Checkout aberto. Após pagar, atualize seu e-mail para confirmar o acesso.";
+            iniciarMonitoramento();
         } catch (err) {
-            button.disabled = true;
-            button.textContent = "Checkout indisponível";
+            button.disabled = false;
+            button.textContent = "Continuar com cartão";
             document.getElementById("checkoutStatus").textContent =
                 err.message || "Erro ao preparar a assinatura.";
         }
-    }
-
-    function irParaCheckout() {
-        if (!checkoutUrlAtual) {
-            return;
-        }
-
-        window.open(checkoutUrlAtual, "_blank", "noopener,noreferrer");
-
-        document.getElementById("checkoutStatus").textContent =
-            "Checkout aberto. Assim que o pagamento for confirmado, atualize seu e-mail aqui.";
-
-        iniciarMonitoramento();
     }
 
     function iniciarMonitoramento() {
@@ -641,7 +802,26 @@ https://www.youtube.com/shorts/..."
 
     function fecharModalPagamento() {
         document.getElementById("modalPagamento").classList.add("hidden");
-        checkoutUrlAtual = null;
+    }
+
+    function copiarPix() {
+        const input = document.getElementById("pixCopiaCola");
+
+        if (!input.value) return;
+
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+
+        navigator.clipboard?.writeText(input.value)
+            .then(() => {
+                document.getElementById("pixStatus").textContent =
+                    "Pix Copia e Cola copiado.";
+            })
+            .catch(() => {
+                document.execCommand("copy");
+                document.getElementById("pixStatus").textContent =
+                    "Pix Copia e Cola copiado.";
+            });
     }
 
     async function cancelarAssinatura() {

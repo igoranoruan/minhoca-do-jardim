@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, Float
+from sqlalchemy import Column, DateTime, Float, Integer, String
 
 from database import Base
 
@@ -42,18 +42,8 @@ class User(Base):
     # Identificação do cliente.
     email = Column(String, unique=True, index=True)
 
-    # ---------------------------------------------------------
-    # COMPATIBILIDADE COM O SISTEMA ANTIGO
-    # ---------------------------------------------------------
-
-    # Mantemos este campo porque já existe no banco atual.
-    # Ele será descontinuado gradualmente quando o novo
-    # sistema comercial estiver completamente implementado.
+    # Compatibilidade com o sistema antigo.
     vip_until = Column(DateTime, nullable=True)
-
-    # ---------------------------------------------------------
-    # NOVA ESTRUTURA COMERCIAL
-    # ---------------------------------------------------------
 
     # free | semanal | mensal | vip
     plan_type = Column(String, nullable=False, default="free")
@@ -74,14 +64,12 @@ class User(Base):
     next_billing_at = Column(DateTime, nullable=True)
 
     # Data em que o cliente cancelou a renovação.
-    # O acesso continua até expires_at.
     cancelled_at = Column(DateTime, nullable=True)
 
-    # Data de criação do cliente.
     created_at = Column(
         DateTime,
         nullable=False,
-        default=datetime.utcnow
+        default=datetime.utcnow,
     )
 
 
@@ -99,18 +87,15 @@ class Transaction(Base):
     # free | semanal | mensal | vip
     plan_type = Column(String)
 
-    # pending | approved | rejected | cancelled | refunded
+    # pending | approved | rejected | cancelled | refunded | charged_back
     status = Column(String, default="pending")
 
     # Valor efetivamente associado à transação.
     amount = Column(Float, nullable=True)
 
     # ID da assinatura recorrente, quando existir.
-    subscription_id = Column(
-        String,
-        nullable=True,
-        index=True
-    )
+    # Para Pix avulso, permanece NULL.
+    subscription_id = Column(String, nullable=True, index=True)
 
     # Momento em que o pagamento foi aprovado.
     approved_at = Column(DateTime, nullable=True)
@@ -118,8 +103,7 @@ class Transaction(Base):
     # Momento em que o webhook/processamento foi concluído.
     processed_at = Column(DateTime, nullable=True)
 
-    # Data de criação do registro.
     created_at = Column(
         DateTime,
-        default=datetime.utcnow
+        default=datetime.utcnow,
     )

@@ -3,7 +3,6 @@ import re
 import uuid
 import hmac
 import hashlib
-import secrets
 import subprocess
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
@@ -15,7 +14,6 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -44,7 +42,17 @@ ADMIN_EMAILS = {
 FREE_LIMIT = 3
 BATCH_MAX_ITEMS = 20
 MAX_URL_LENGTH = 2048
+MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
 CLEAN_FILE_TTL_SECONDS = 3600
+
+SUPPORTED_HOSTS = {
+    "tiktok.com",
+    "instagram.com",
+    "youtube.com",
+    "youtu.be",
+    "pinterest.com",
+    "pin.it",
+}
 
 PLAN_CONFIG = {
     "semanal": {
@@ -151,6 +159,39 @@ def is_valid_video_url(value: str) -> bool:
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         return False
 
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+
+    return any(
+        hostname == allowed
+        or hostname.endswith(f".{allowed}")
+        for allowed in SUPPORTED_HOSTS
+    )
+
+
+def is_safe_remote_download_url(value: str) -> bool:
+    """Evita que fallbacks externos sejam usados como SSRF."""
+
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+
+    hostname = parsed.hostname.lower().rstrip(".")
+
+    blocked_hosts = {
+        "localhost",
+        "localhost.localdomain",
+        "0.0.0.0",
+        "127.0.0.1",
+        "::1",
+    }
+
+    if hostname in blocked_hosts or hostname.endswith(".local"):
+        return False
+
     return True
 
 
@@ -186,6 +227,9 @@ def clean_metadata(input_path: str, output_path: str):
 
 
 def download_direct_file(url: str, dest_path: str):
+    if not is_safe_remote_download_url(url):
+        raise RuntimeError("A fonte externa do vídeo não é válida.")
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -203,14 +247,35 @@ def download_direct_file(url: str, dest_path: str):
     ) as response:
         response.raise_for_status()
 
+        final_url = response.url
+        if not is_safe_remote_download_url(final_url):
+            raise RuntimeError("O redirecionamento da fonte não é seguro.")
+
         content_type = (response.headers.get("content-type") or "").lower()
         if "text/html" in content_type:
             raise RuntimeError("A fonte retornou uma página HTML em vez do vídeo.")
 
+        content_length = response.headers.get("content-length")
+        if content_length:
+            try:
+                if int(content_length) > MAX_DOWNLOAD_BYTES:
+                    raise RuntimeError("O vídeo excede o tamanho máximo permitido.")
+            except ValueError:
+                pass
+
+        total = 0
+
         with open(dest_path, "wb") as file:
             for chunk in response.iter_content(chunk_size=1024 * 128):
-                if chunk:
-                    file.write(chunk)
+                if not chunk:
+                    continue
+
+                total += len(chunk)
+
+                if total > MAX_DOWNLOAD_BYTES:
+                    raise RuntimeError("O vídeo excede o tamanho máximo permitido.")
+
+                file.write(chunk)
 
     if not os.path.exists(dest_path) or os.path.getsize(dest_path) < 1024:
         raise RuntimeError("O download retornou um arquivo inválido ou vazio.")
@@ -556,10 +621,14 @@ def download_video_source(video_url: str, raw_path: str):
             "format": "bestvideo+bestaudio/best",
             "merge_output_format": "mp4",
             "quiet": True,
-            "nocheckcertificate": True,
             "ignoreerrors": False,
             "no_warnings": True,
             "noplaylist": True,
+            "retries": 2,
+            "fragment_retries": 2,
+            "socket_timeout": 30,
+            "concurrent_fragment_downloads": 2,
+            "js_runtimes": {"deno": {}},
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -594,7 +663,40 @@ def download_video_source(video_url: str, raw_path: str):
             "Não foi possível extrair o vídeo informado."
         )
 
+    if os.path.getsize(actual_raw_path) > MAX_DOWNLOAD_BYTES:
+        try:
+            os.remove(actual_raw_path)
+        except OSError:
+            pass
+        raise RuntimeError("O vídeo excede o tamanho máximo permitido.")
+
     return actual_raw_path
+
+
+def friendly_download_error(video_url: str, error: Exception) -> str:
+    message = str(error)
+    lower = message.lower()
+    hostname = (urlparse(video_url).hostname or "").lower()
+
+    if "instagram.com" in hostname and (
+        "429" in lower
+        or "too many requests" in lower
+        or "rate" in lower
+    ):
+        return (
+            "O Instagram limitou temporariamente a origem deste servidor. "
+            "Tente novamente mais tarde ou use outro vídeo. "
+            "Isso é uma limitação da plataforma, não do processamento MP4."
+        )
+
+    if "youtube.com" in hostname or "youtu.be" in hostname:
+        if "sign in to confirm" in lower or "not a bot" in lower:
+            return (
+                "O YouTube exigiu autenticação para este vídeo no servidor. "
+                "Este link não pôde ser processado agora."
+            )
+
+    return message or "Não foi possível processar o vídeo."
 
 
 def process_one_video(video_url: str, quota_usage, plan_type: str):
@@ -729,9 +831,12 @@ def mp_create_subscription(
         "status": "pending",
     }
 
+    headers = mp_headers(token)
+    headers["X-Idempotency-Key"] = str(uuid.uuid4())
+
     response = requests.post(
         "https://api.mercadopago.com/preapproval",
-        headers=mp_headers(token),
+        headers=headers,
         json=payload,
         timeout=30,
     )
@@ -791,6 +896,71 @@ def mp_get_payment(payment_id: str):
 
     response.raise_for_status()
     return response.json()
+
+
+def mp_create_pix_payment(
+    email: str,
+    plan_type: str,
+    external_reference: str,
+):
+    """Cria um pagamento único via Pix pelo Checkout API."""
+
+    token = get_mp_token()
+
+    if not token:
+        raise HTTPException(
+            status_code=500,
+            detail="Mercado Pago não configurado no servidor (MP_ACCESS_TOKEN).",
+        )
+
+    plan = PLAN_CONFIG[plan_type]
+
+    payload = {
+        "transaction_amount": plan["amount"],
+        "description": f"Minhoca de Jardim - Plano {plan['name']} (Pix)",
+        "payment_method_id": "pix",
+        "external_reference": external_reference,
+        "notification_url": f"{get_public_base_url()}/api/webhook",
+        "payer": {
+            "email": email,
+        },
+    }
+
+    headers = mp_headers(token)
+    headers["X-Idempotency-Key"] = str(uuid.uuid4())
+
+    response = requests.post(
+        "https://api.mercadopago.com/v1/payments",
+        headers=headers,
+        json=payload,
+        timeout=30,
+    )
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = {}
+
+    if not response.ok:
+        message = (
+            data.get("message")
+            or data.get("error")
+            or "Mercado Pago recusou a criação do pagamento Pix."
+        )
+        raise HTTPException(status_code=502, detail=message)
+
+    transaction_data = (
+        data.get("point_of_interaction", {})
+        .get("transaction_data", {})
+    )
+
+    if not data.get("id") or not transaction_data.get("qr_code"):
+        raise HTTPException(
+            status_code=502,
+            detail="Mercado Pago não retornou os dados do Pix.",
+        )
+
+    return data
 
 
 def mp_get_authorized_payment(authorized_payment_id: str):
@@ -967,6 +1137,81 @@ def activate_user_from_payment(
     return True
 
 
+def activate_user_from_pix_payment(
+    db: Session,
+    payment: dict,
+    transaction: models.Transaction,
+):
+    """Libera um período pago via Pix, sem criar renovação automática."""
+
+    if not transaction or transaction.subscription_id:
+        return False
+
+    plan_type = transaction.plan_type
+    if plan_type not in PLAN_CONFIG:
+        return False
+
+    email = (
+        payment.get("payer", {}).get("email")
+        or transaction.email
+        or ""
+    )
+
+    if not email or not transaction.email:
+        return False
+
+    email = normalize_email(email)
+    expected_email = normalize_email(transaction.email)
+
+    if email != expected_email:
+        return False
+
+    payment_amount = payment.get("transaction_amount")
+    expected_amount = transaction.amount
+
+    if payment_amount is None or expected_amount is None:
+        return False
+
+    if abs(float(payment_amount) - float(expected_amount)) > 0.01:
+        return False
+
+    user = get_or_create_user(db, email)
+    now = datetime.utcnow()
+
+    current_access = (
+        user.expires_at
+        if user.expires_at and user.expires_at > now
+        else now
+    )
+
+    period_end = current_access + (
+        timedelta(days=7)
+        if plan_type == "semanal"
+        else timedelta(days=30)
+    )
+
+    user.plan_type = plan_type
+    user.status = "active"
+    user.started_at = (
+        user.started_at
+        if user.started_at and user.expires_at and user.expires_at > now
+        else now
+    )
+    user.expires_at = period_end
+    user.next_billing_at = None
+    user.cancelled_at = None
+    user.subscription_id = None
+    user.vip_until = period_end
+
+    db.commit()
+    return True
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     if os.path.exists("static/index.html"):
@@ -1039,8 +1284,8 @@ def process_video(
 
     except Exception as exc:
         raise HTTPException(
-            status_code=500,
-            detail=str(exc),
+            status_code=502,
+            detail=friendly_download_error(video_url.strip(), exc),
         ) from exc
 
 
@@ -1155,6 +1400,132 @@ def get_file(filename: str):
             "Pragma": "no-cache",
         },
     )
+
+
+@app.post("/api/create-pix")
+def create_pix_payment(
+    payload: SubscriptionRequest,
+    db: Session = Depends(get_db),
+):
+    plan_type = payload.plan_type.strip().lower()
+    email = normalize_email(payload.email)
+
+    if plan_type not in PLAN_CONFIG:
+        raise HTTPException(status_code=400, detail="Plano inválido.")
+
+    if is_admin(email):
+        raise HTTPException(
+            status_code=400,
+            detail="A conta administradora não precisa de pagamento.",
+        )
+
+    user = get_or_create_user(db, email)
+
+    if subscription_is_active(user, datetime.utcnow()):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Você já possui um plano ativo. "
+                "Aguarde o vencimento ou use a assinatura atual."
+            ),
+        )
+
+    external_reference = f"minhoca-pix-{plan_type}-{uuid.uuid4().hex}"
+
+    payment = mp_create_pix_payment(
+        email=email,
+        plan_type=plan_type,
+        external_reference=external_reference,
+    )
+
+    transaction = models.Transaction(
+        payment_id=str(payment["id"]),
+        email=email,
+        plan_type=plan_type,
+        status=payment.get("status", "pending"),
+        amount=PLAN_CONFIG[plan_type]["amount"],
+        subscription_id=None,
+    )
+
+    db.add(transaction)
+    db.commit()
+
+    transaction_data = (
+        payment.get("point_of_interaction", {})
+        .get("transaction_data", {})
+    )
+
+    return {
+        "status": payment.get("status", "pending"),
+        "payment_id": str(payment["id"]),
+        "plan": plan_type,
+        "amount": PLAN_CONFIG[plan_type]["amount"],
+        "qr_code": transaction_data.get("qr_code"),
+        "qr_code_base64": transaction_data.get("qr_code_base64"),
+        "date_of_expiration": payment.get("date_of_expiration"),
+    }
+
+
+@app.get("/api/pix-status")
+def pix_status(
+    payment_id: str,
+    email: str,
+    db: Session = Depends(get_db),
+):
+    clean_email = normalize_email(email)
+    transaction = (
+        db.query(models.Transaction)
+        .filter(models.Transaction.payment_id == str(payment_id))
+        .first()
+    )
+
+    if not transaction or transaction.email != clean_email or transaction.subscription_id:
+        raise HTTPException(status_code=404, detail="Pagamento Pix não encontrado.")
+
+    if transaction.processed_at:
+        return {
+            "status": transaction.status,
+            "approved": transaction.status == "approved",
+        }
+
+    try:
+        payment = mp_get_payment(str(payment_id))
+    except Exception:
+        return {
+            "status": transaction.status,
+            "approved": False,
+        }
+
+    payment_status = payment.get("status") or transaction.status
+
+    if payment_status == "approved":
+        activated = activate_user_from_pix_payment(
+            db,
+            payment,
+            transaction,
+        )
+
+        if activated:
+            transaction.status = "approved"
+            transaction.amount = payment.get("transaction_amount")
+            transaction.approved_at = datetime.utcnow()
+            transaction.processed_at = datetime.utcnow()
+            db.commit()
+
+    elif payment_status in {
+        "rejected",
+        "cancelled",
+        "refunded",
+        "charged_back",
+    }:
+        transaction.status = payment_status
+        transaction.processed_at = datetime.utcnow()
+        db.commit()
+
+    return {
+        "status": transaction.status,
+        "approved": transaction.status == "approved",
+    }
 
 
 @app.post("/api/create-subscription")
@@ -1369,13 +1740,18 @@ async def mercado_pago_webhook(
             }
 
         if payment_status == "approved":
-            activated = activate_user_from_payment(
-                db,
-                payment,
-            )
+            activated = False
 
-            if activated:
-                if transaction:
+            if transaction and not transaction.subscription_id:
+                # Pagamento único via Pix. A transação já contém o plano,
+                # e-mail e valor que esperamos receber.
+                activated = activate_user_from_pix_payment(
+                    db,
+                    payment,
+                    transaction,
+                )
+
+                if activated:
                     transaction.status = "approved"
                     transaction.amount = payment.get(
                         "transaction_amount"
@@ -1383,31 +1759,48 @@ async def mercado_pago_webhook(
                     transaction.approved_at = datetime.utcnow()
                     transaction.processed_at = datetime.utcnow()
                     db.commit()
-                else:
-                    email = (
-                        payment.get("payer", {}).get("email")
-                        or ""
-                    )
 
-                    if email:
-                        email = normalize_email(email)
-                        user = get_user(db, email)
+            else:
+                # Pagamento associado a uma assinatura recorrente.
+                activated = activate_user_from_payment(
+                    db,
+                    payment,
+                )
 
-                        if user and user.subscription_id:
-                            new_transaction = models.Transaction(
-                                payment_id=payment_id,
-                                email=email,
-                                plan_type=user.plan_type,
-                                status="approved",
-                                amount=payment.get(
-                                    "transaction_amount"
-                                ),
-                                subscription_id=user.subscription_id,
-                                approved_at=datetime.utcnow(),
-                                processed_at=datetime.utcnow(),
-                            )
-                            db.add(new_transaction)
-                            db.commit()
+                if activated:
+                    if transaction:
+                        transaction.status = "approved"
+                        transaction.amount = payment.get(
+                            "transaction_amount"
+                        )
+                        transaction.approved_at = datetime.utcnow()
+                        transaction.processed_at = datetime.utcnow()
+                        db.commit()
+                    else:
+                        email = (
+                            payment.get("payer", {}).get("email")
+                            or ""
+                        )
+
+                        if email:
+                            email = normalize_email(email)
+                            user = get_user(db, email)
+
+                            if user and user.subscription_id:
+                                new_transaction = models.Transaction(
+                                    payment_id=payment_id,
+                                    email=email,
+                                    plan_type=user.plan_type,
+                                    status="approved",
+                                    amount=payment.get(
+                                        "transaction_amount"
+                                    ),
+                                    subscription_id=user.subscription_id,
+                                    approved_at=datetime.utcnow(),
+                                    processed_at=datetime.utcnow(),
+                                )
+                                db.add(new_transaction)
+                                db.commit()
 
         elif transaction and payment_status in {
             "rejected",
@@ -1472,9 +1865,13 @@ async def mercado_pago_webhook(
                     user.cancelled_at = datetime.utcnow()
 
             elif status in {"authorized", "active"}:
-                # A liberação/renovação do período pago é
-                # confirmada pelo evento de pagamento aprovado.
-                user.status = "active"
+                # A assinatura pode estar autorizada antes de o primeiro
+                # pagamento ser confirmado. Não liberamos acesso novo
+                # aqui; o pagamento aprovado é quem confirma o período.
+                if subscription_is_active(user, datetime.utcnow()):
+                    user.status = "active"
+                else:
+                    user.status = "pending"
 
             elif status == "pending":
                 if user.status != "active":
@@ -1657,6 +2054,7 @@ def check_email_status(
                 else None
             ),
             "subscription_status": user.status,
+            "payment_type": "cartao" if user.subscription_id else "pix",
             "cancelled_at": (
                 user.cancelled_at.isoformat()
                 if user.cancelled_at
@@ -1689,16 +2087,31 @@ def get_subscription(
 ):
     clean_email = normalize_email(email)
     user = get_user(db, clean_email)
+    now = datetime.utcnow()
 
-    if not user or not user.subscription_id:
+    if not user:
         return {
             "has_subscription": False,
+            "has_paid_plan": False,
             "plan": "free",
         }
 
+    plan_type = current_plan_for_user(user, now)
+
+    if plan_type not in PLAN_CONFIG:
+        return {
+            "has_subscription": False,
+            "has_paid_plan": False,
+            "plan": "free",
+        }
+
+    is_card = bool(user.subscription_id)
+
     return {
-        "has_subscription": True,
-        "plan": user.plan_type,
+        "has_subscription": is_card,
+        "has_paid_plan": True,
+        "payment_type": "cartao" if is_card else "pix",
+        "plan": plan_type,
         "status": user.status,
         "subscription_id": user.subscription_id,
         "started_at": (
