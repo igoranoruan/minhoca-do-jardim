@@ -1,28 +1,125 @@
-from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
+
+from sqlalchemy import Column, Integer, String, DateTime, Float
+
 from database import Base
+
 
 class UserUsage(Base):
     __tablename__ = "user_usage"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # Controle do plano Free por IP.
     ip_address = Column(String, unique=True, index=True)
+
     downloads_today = Column(Integer, default=0)
+
     last_download_date = Column(String)
+
+
+class PlanUsage(Base):
+    __tablename__ = "plan_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Usuário ao qual pertence o contador.
+    user_id = Column(Integer, index=True, nullable=False)
+
+    # Data no formato YYYY-MM-DD.
+    usage_date = Column(String, index=True, nullable=False)
+
+    # Quantidade de downloads/processamentos realizados
+    # pelo usuário naquele dia.
+    downloads_today = Column(Integer, default=0, nullable=False)
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # Identificação do cliente.
     email = Column(String, unique=True, index=True)
-    vip_until = Column(DateTime, nullable=True) # Data em que expira o VIP
+
+    # ---------------------------------------------------------
+    # COMPATIBILIDADE COM O SISTEMA ANTIGO
+    # ---------------------------------------------------------
+
+    # Mantemos este campo porque já existe no banco atual.
+    # Ele será descontinuado gradualmente quando o novo
+    # sistema comercial estiver completamente implementado.
+    vip_until = Column(DateTime, nullable=True)
+
+    # ---------------------------------------------------------
+    # NOVA ESTRUTURA COMERCIAL
+    # ---------------------------------------------------------
+
+    # free | semanal | mensal | vip
+    plan_type = Column(String, nullable=False, default="free")
+
+    # active | cancelled | expired | pending
+    status = Column(String, nullable=False, default="active")
+
+    # ID da assinatura recorrente no Mercado Pago.
+    subscription_id = Column(String, nullable=True, index=True)
+
+    # Data em que o período atual começou.
+    started_at = Column(DateTime, nullable=True)
+
+    # Data em que o período atual termina.
+    expires_at = Column(DateTime, nullable=True)
+
+    # Próxima data prevista para cobrança.
+    next_billing_at = Column(DateTime, nullable=True)
+
+    # Data em que o cliente cancelou a renovação.
+    # O acesso continua até expires_at.
+    cancelled_at = Column(DateTime, nullable=True)
+
+    # Data de criação do cliente.
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    # ID do pagamento no Mercado Pago.
     payment_id = Column(String, unique=True, index=True)
-    email = Column(String)
+
+    # E-mail associado ao pagamento.
+    email = Column(String, index=True)
+
+    # free | semanal | mensal | vip
     plan_type = Column(String)
+
+    # pending | approved | rejected | cancelled | refunded
     status = Column(String, default="pending")
-    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Valor efetivamente associado à transação.
+    amount = Column(Float, nullable=True)
+
+    # ID da assinatura recorrente, quando existir.
+    subscription_id = Column(
+        String,
+        nullable=True,
+        index=True
+    )
+
+    # Momento em que o pagamento foi aprovado.
+    approved_at = Column(DateTime, nullable=True)
+
+    # Momento em que o webhook/processamento foi concluído.
+    processed_at = Column(DateTime, nullable=True)
+
+    # Data de criação do registro.
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
+    )

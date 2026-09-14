@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minhoca de Jardim — Camuflagem & Limpeza de Metadados</title>
-    <!-- Favicon Atualizado -->
+    <title>Minhoca de Jardim — Baixe, limpe e prepare seus vídeos</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
-    
-    <!-- Google Fonts & Tailwind -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,389 +19,879 @@
         .glow-hover:hover { box-shadow: 0 0 20px rgba(16, 185, 129, 0.25); }
         .bg-gradient-cyber { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
         .bg-card { background-color: #0f172a; border: 1px solid #1e293b; }
-        .glass-panel { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-fade {
+            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
+
 <body class="min-h-screen flex flex-col justify-between items-center p-4 sm:p-6">
 
-    <!-- Header Limpo -->
-    <header class="w-full max-w-3xl flex flex-col sm:flex-row justify-between items-center gap-4 py-4 glass-panel px-6 rounded-2xl mb-6 shadow-xl">
-        <div class="text-center sm:text-left">
-            <span class="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200 block">
-                Minhoca de Jardim
+<header class="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center gap-4 py-4 glass-panel px-6 rounded-2xl mb-6 shadow-xl">
+    <div class="text-center sm:text-left">
+        <span class="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200 block">
+            Minhoca de Jardim
+        </span>
+        <span class="text-[11px] font-semibold tracking-wide text-gray-400 block mt-0.5">
+            Download, processamento e limpeza de arquivos para criadores
+        </span>
+    </div>
+
+    <div class="w-full sm:w-auto flex items-center gap-1.5">
+        <div class="relative flex-1 sm:w-64">
+            <i class="fa-solid fa-envelope absolute left-3 top-3 text-xs text-gray-500"></i>
+            <input id="userEmail" type="email" autocomplete="email"
+                placeholder="Seu e-mail..."
+                class="w-full pl-8 pr-3 py-2 bg-gray-950/90 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all">
+        </div>
+        <button onclick="ativarEmail()"
+            class="px-4 py-2 bg-gradient-cyber hover:opacity-90 text-gray-950 font-extrabold text-xs rounded-xl transition-all whitespace-nowrap shadow-md">
+            Ativar
+        </button>
+    </div>
+</header>
+
+<main class="w-full max-w-4xl my-auto py-2">
+
+    <div class="text-center mb-6">
+        <div id="statusContaBadge"
+            class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 text-xs font-semibold mb-4">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="statusContaTexto">Pronto para processar</span>
+        </div>
+
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-3 text-white leading-tight">
+            SEU VÍDEO.<br>
+            <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">
+                LIMPO. PRONTO PRA POSTAR.
             </span>
-            <span class="text-[11px] font-semibold tracking-wide text-gray-400 block mt-0.5">
-                Proteção e camuflagem digital contra conteúdos reutilizados
-            </span>
-        </div>
+        </h1>
 
-        <!-- Área de Ativação do E-mail -->
-        <div class="w-full sm:w-auto flex items-center gap-1.5">
-            <div class="relative flex-1 sm:w-64">
-                <i class="fa-solid fa-envelope absolute left-3 top-3 text-xs text-gray-500"></i>
-                <input id="userEmail" type="email" placeholder="Seu e-mail cadastrado..." 
-                    class="w-full pl-8 pr-3 py-2 bg-gray-950/90 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all">
-            </div>
-            <button onclick="ativarEmail()" class="px-4 py-2 bg-gradient-cyber hover:opacity-90 text-gray-950 font-extrabold text-xs rounded-xl transition-all whitespace-nowrap shadow-md">
-                Ativar
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content Container -->
-    <main class="w-full max-w-3xl my-auto py-2">
-        
-        <!-- Hero Section -->
-        <div class="text-center mb-6">
-            <div id="statusContaBadge" class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 text-xs font-semibold mb-4">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> <span id="statusContaTexto">Algoritmo Anti-Shadowban Ativo</span>
-            </div>
-            
-            <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-3 text-white leading-tight">
-                Baixe Vídeos <br>
-                <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">Sem Rastros</span>
-            </h1>
-            <p class="text-gray-400 text-xs sm:text-sm max-w-lg mx-auto leading-relaxed">
-                Remova metadados Exif, altere a assinatura digital de áudio/vídeo e re-utilize seus conteúdos de forma 100% segura.
-            </p>
-        </div>
-
-        <!-- Badges Reorganizadas -->
-        <div class="flex flex-col items-center gap-2 mb-6">
-            <div class="flex flex-wrap justify-center gap-2">
-                <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
-                    <i class="fa-solid fa-wave-square text-emerald-400"></i> Camuflagem de DNA Digital
-                </span>
-                <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
-                    <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i> Limpeza de Exif
-                </span>
-            </div>
-            <div>
-                <span class="px-3.5 py-1.5 text-xs font-semibold text-red-300 bg-red-950/30 rounded-xl flex items-center gap-2 border border-red-500/20 shadow-sm">
-                    <i class="fa-solid fa-ban text-red-400"></i> 100% Sem Anúncios
-                </span>
-            </div>
-        </div>
-
-        <!-- Card de Dica PRO -->
-        <div class="bg-emerald-950/20 border border-emerald-800/30 p-4 rounded-2xl mb-6 flex items-start gap-3 text-left backdrop-blur-md">
-            <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
-            <div class="text-xs text-gray-300 leading-relaxed">
-                <strong class="text-emerald-400 font-semibold block mb-0.5">Dica PRO Anti-Shadowban:</strong>
-                Para maximizar a camuflagem, dê preferência a vídeos <span class="text-white font-medium">sem legendas fixadas na imagem</span>. Baixe o arquivo limpo e insira legendas novas pelo CapCut ou direto no aplicativo de publicação.
-            </div>
-        </div>
-
-        <!-- Input Box -->
-        <div class="bg-card p-4 sm:p-6 rounded-2xl glow-emerald mb-10 relative border border-emerald-500/20 shadow-2xl">
-            <div class="flex flex-col sm:flex-row gap-3">
-                <div class="relative flex-1">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
-                        <i class="fa-solid fa-link"></i>
-                    </div>
-                    <input id="url" type="text" 
-                        placeholder="Cole a URL do TikTok, Reels, Shorts, Pinterest..." 
-                        class="w-full pl-11 pr-4 py-3.5 bg-gray-950/90 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all text-xs sm:text-sm">
-                </div>
-                <button onclick="baixarVideo()" 
-                    class="py-3.5 px-6 bg-gradient-cyber hover:opacity-95 text-gray-950 font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap glow-hover active:scale-95">
-                    <i class="fa-solid fa-download"></i> Limpar & Baixar
-                </button>
-            </div>
-            <div id="status" class="mt-4 text-center text-xs sm:text-sm"></div>
-        </div>
-
-        <!-- Seção de Planos -->
-        <div id="secaoPlanos" class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-            
-            <!-- Semanal -->
-            <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-emerald-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
-                <div>
-                    <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Semanal</div>
-                    <div class="text-3xl font-extrabold text-white mb-1">R$ 9,91</div>
-                    <div class="text-[11px] text-emerald-500 font-medium mb-4">Válido por 7 dias</div>
-                    
-                    <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Downloads Ilimitados</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Limpeza de Exif & Hash</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Ideal para testes rápidos</li>
-                    </ul>
-                </div>
-                <button onclick="abrirModalPagamento('semanal')" class="w-full py-3 bg-gray-800 hover:bg-emerald-600 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
-                    Assinar Semanal
-                </button>
-            </div>
-
-            <!-- Mensal (Destaque) -->
-            <div class="bg-card p-6 rounded-2xl border-2 border-emerald-500 relative glow-emerald text-left flex flex-col justify-between shadow-2xl">
-                <span class="absolute -top-3.5 right-4 bg-emerald-500 text-gray-950 text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow-md">Mais Vendido</span>
-                <div>
-                    <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Mensal</div>
-                    <div class="text-3xl font-extrabold text-white mb-1">R$ 16,92</div>
-                    <div class="text-[11px] text-emerald-400 font-medium mb-4">Válido por 30 dias</div>
-                    
-                    <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Downloads 100% Ilimitados</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Alteração de DNA Digital</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400 text-xs"></i> Velocidade Maximizada</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i> Sem cobrança recorrente</li>
-                    </ul>
-                </div>
-                <button onclick="abrirModalPagamento('mensal')" class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs transition-all hover:opacity-90 shadow-lg">
-                    Assinar Mensal
-                </button>
-            </div>
-
-            <!-- VIP Batch -->
-            <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-amber-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
-                <div>
-                    <div class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">VIP Batch</div>
-                    <div class="text-3xl font-extrabold text-white mb-1">R$ 29,93</div>
-                    <div class="text-[11px] text-amber-400 font-medium mb-4">Válido por 30 dias</div>
-                    
-                    <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> Acesso VIP Ilimitado</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> Suporte Prioritário</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> Processamento em Lote</li>
-                        <li class="flex items-center gap-2"><i class="fa-solid fa-check text-amber-400 text-xs"></i> Ideal para Agências e Infoprodutores</li>
-                    </ul>
-                </div>
-                <button onclick="abrirModalPagamento('vip')" class="w-full py-3 bg-gray-800 hover:bg-amber-500 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
-                    Assinar VIP Batch
-                </button>
-            </div>
-        </div>
-
-        <p class="text-center text-xs text-gray-500 mb-6">
-            <i class="fa-solid fa-lock text-emerald-500"></i> Pagamento seguro. Os planos expiram automaticamente após o período (7 ou 30 dias) sem renovação automática no seu cartão.
+        <p class="text-gray-400 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
+            Cole o link do TikTok, Reels, Shorts ou Pinterest. A Minhoca baixa o arquivo,
+            remove metadados do contêiner e gera uma nova versão em MP4.
         </p>
+    </div>
 
-    </main>
+    <div class="flex flex-wrap justify-center gap-2 mb-6">
+        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
+            <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i>
+            Limpeza de metadados
+        </span>
+        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
+            <i class="fa-solid fa-file-video text-emerald-400"></i>
+            Nova versão em MP4
+        </span>
+        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
+            <i class="fa-solid fa-ban text-red-400"></i>
+            Sem anúncios
+        </span>
+    </div>
 
-    <!-- Modal de Pagamento (PIX / Cartão) -->
-    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50 animate-fade">
-        <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-emerald-500/30 text-center relative shadow-2xl">
-            <button onclick="fecharModalPagamento()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all"><i class="fa-solid fa-xmark text-lg"></i></button>
-            
-            <h3 class="text-xl font-bold text-white mb-1">Escolha a Forma de Pagamento</h3>
-            <p class="text-xs text-gray-400 mb-4">Acesso liberado imediatamente após a confirmação.</p>
-
-            <!-- Abas PIX / Cartão -->
-            <div class="flex border-b border-gray-800 mb-4">
-                <button id="tabPixBtn" onclick="trocarAbaPagamento('pix')" class="flex-1 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-500">
-                    <i class="fa-solid fa-pix"></i> PIX (Instantâneo)
-                </button>
-                <button id="tabCartaoBtn" onclick="trocarAbaPagamento('cartao')" class="flex-1 py-2 text-xs font-bold text-gray-500 hover:text-gray-300">
-                    <i class="fa-solid fa-credit-card"></i> Cartão de Crédito
-                </button>
-            </div>
-
-            <!-- Conteúdo PIX -->
-            <div id="conteudoPix">
-                <div id="qrCodeContainer" class="bg-white p-3 rounded-xl inline-block mb-3 border border-gray-200"></div>
-                <input id="pixCopiaCola" type="text" readonly class="w-full bg-gray-950 border border-gray-800 text-xs p-3 rounded-xl text-gray-300 text-center mb-3 focus:outline-none select-all">
-                <button onclick="copiarPix()" class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-md mb-2">
-                    Copiar Código PIX
-                </button>
-            </div>
-
-            <!-- Conteúdo Cartão -->
-            <div id="conteudoCartao" class="hidden text-left space-y-3 py-2">
-                <div>
-                    <label class="text-[11px] text-gray-400 block mb-1">Número do Cartão</label>
-                    <input type="text" placeholder="0000 0000 0000 0000" class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[11px] text-gray-400 block mb-1">Validade</label>
-                        <input type="text" placeholder="MM/AA" class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-[11px] text-gray-400 block mb-1">CVV</label>
-                        <input type="text" placeholder="123" class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
-                    </div>
-                </div>
-                <button onclick="alert('Checkout via cartão em homologação. Utilize o PIX para liberação imediata!')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-gray-950 font-extrabold rounded-xl text-xs transition-all shadow-md mt-2">
-                    Pagar no Cartão
-                </button>
-            </div>
-
-            <p class="text-[10px] text-gray-500 mt-3">
-                Assinatura válida pelo período contratado. Sem cobranças automáticas no futuro.
-            </p>
+    <div class="bg-emerald-950/20 border border-emerald-800/30 p-4 rounded-2xl mb-6 flex items-start gap-3 text-left backdrop-blur-md">
+        <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
+        <div class="text-xs text-gray-300 leading-relaxed">
+            <strong class="text-emerald-400 font-semibold block mb-0.5">
+                Dica para reutilização:
+            </strong>
+            Se você pretende editar o conteúdo novamente, prefira baixar um arquivo sem textos
+            ou elementos fixos que você não queira manter. Assim você pode adaptar a edição
+            para o seu próprio formato.
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="w-full max-w-3xl text-center py-4 text-xs text-gray-600 border-t border-gray-800/40">
-        © 2026 Minhoca de Jardim — Tecnologia de Camuflagem Digital para Criadores de Conteúdo.
-    </footer>
+    <div class="bg-card p-4 sm:p-6 rounded-2xl glow-emerald mb-8 relative border border-emerald-500/20 shadow-2xl">
+        <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
+                    <i class="fa-solid fa-link"></i>
+                </div>
+                <input id="url" type="url"
+                    placeholder="Cole a URL do TikTok, Reels, Shorts, Pinterest..."
+                    class="w-full pl-11 pr-4 py-3.5 bg-gray-950/90 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all text-xs sm:text-sm">
+            </div>
 
-    <script>
+            <button id="downloadButton" onclick="baixarVideo()"
+                class="py-3.5 px-6 bg-gradient-cyber hover:opacity-95 text-gray-950 font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap glow-hover active:scale-95">
+                <i class="fa-solid fa-download"></i>
+                Limpar & Baixar
+            </button>
+        </div>
+
+        <div id="status" class="mt-4 text-center text-xs sm:text-sm"></div>
+    </div>
+
+    <div id="secaoPlanos" class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+
+        <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-emerald-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
+            <div>
+                <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Semanal</div>
+                <div class="text-3xl font-extrabold text-white mb-1">R$ 9,90</div>
+                <div class="text-[11px] text-emerald-500 font-medium mb-4">
+                    Renovação a cada 7 dias
+                </div>
+
+                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        10 downloads por dia
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        Limpeza de metadados
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        Processamento rápido
+                    </li>
+                </ul>
+            </div>
+
+            <button onclick="abrirModalPagamento('semanal')"
+                class="w-full py-3 bg-gray-800 hover:bg-emerald-600 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                Assinar Semanal
+            </button>
+        </div>
+
+        <div class="bg-card p-6 rounded-2xl border-2 border-emerald-500 relative glow-emerald text-left flex flex-col justify-between shadow-2xl">
+            <span class="absolute -top-3.5 right-4 bg-emerald-500 text-gray-950 text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow-md">
+                Mais Vendido
+            </span>
+
+            <div>
+                <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Mensal</div>
+                <div class="text-3xl font-extrabold text-white mb-1">R$ 16,90</div>
+                <div class="text-[11px] text-emerald-400 font-medium mb-4">
+                    Renovação mensal
+                </div>
+
+                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        30 downloads por dia
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        Limpeza de metadados
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
+                        Processamento rápido
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
+                        Cancele quando quiser
+                    </li>
+                </ul>
+            </div>
+
+            <button onclick="abrirModalPagamento('mensal')"
+                class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs transition-all hover:opacity-90 shadow-lg">
+                Assinar Mensal
+            </button>
+        </div>
+
+        <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-amber-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
+            <div>
+                <div class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">VIP Batch</div>
+                <div class="text-3xl font-extrabold text-white mb-1">R$ 29,90</div>
+                <div class="text-[11px] text-amber-400 font-medium mb-4">
+                    Renovação mensal
+                </div>
+
+                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
+                        Downloads ilimitados
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
+                        Processamento em lote
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
+                        Limpeza de metadados
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i class="fa-solid fa-bolt text-amber-400 text-xs"></i>
+                        Para quem processa muito conteúdo
+                    </li>
+                </ul>
+            </div>
+
+            <button onclick="abrirModalPagamento('vip')"
+                class="w-full py-3 bg-gray-800 hover:bg-amber-500 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                Assinar VIP Batch
+            </button>
+        </div>
+    </div>
+
+    <div id="areaAssinatura" class="hidden bg-card border border-gray-800 rounded-2xl p-5 mb-8">
+        <div class="flex flex-col sm:flex-row justify-between gap-4">
+            <div>
+                <div class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Minha assinatura</div>
+                <div id="assinaturaPlano" class="text-sm font-bold text-white">—</div>
+                <div id="assinaturaStatus" class="text-xs text-gray-400 mt-1">—</div>
+            </div>
+            <button id="cancelarButton" onclick="cancelarAssinatura()"
+                class="hidden px-4 py-2 rounded-xl bg-gray-800 hover:bg-red-600 text-white text-xs font-bold transition-all">
+                Cancelar renovação
+            </button>
+        </div>
+    </div>
+
+    <div id="secaoBatch" class="hidden bg-card border border-amber-500/20 rounded-2xl p-5 mb-8">
+        <div class="flex items-start gap-3 mb-4">
+            <i class="fa-solid fa-layer-group text-amber-400 mt-1"></i>
+            <div>
+                <h2 class="text-sm font-extrabold text-white">VIP Batch — processe vários links</h2>
+                <p class="text-xs text-gray-400 mt-1">
+                    Cole até 20 URLs, uma por linha. Disponível somente no VIP Batch.
+                </p>
+            </div>
+        </div>
+
+        <textarea id="batchUrls" rows="6"
+            placeholder="https://www.tiktok.com/...
+https://www.instagram.com/reel/...
+https://www.youtube.com/shorts/..."
+            class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 resize-y"></textarea>
+
+        <button onclick="processarLote()"
+            class="w-full mt-3 py-3 bg-amber-500 hover:bg-amber-400 text-gray-950 font-extrabold rounded-xl text-xs transition-all">
+            <i class="fa-solid fa-gears mr-1"></i>
+            Processar Lote
+        </button>
+
+        <div id="batchStatus" class="mt-4 text-xs"></div>
+    </div>
+
+    <p class="text-center text-xs text-gray-500 mb-6">
+        <i class="fa-solid fa-lock text-emerald-500"></i>
+        Pagamento processado pelo Mercado Pago.
+        A assinatura renova automaticamente até ser cancelada.
+    </p>
+</main>
+
+<div id="modalPagamento"
+    class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50 animate-fade">
+    <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-emerald-500/30 text-center relative shadow-2xl">
+        <button onclick="fecharModalPagamento()"
+            class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all">
+            <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center mb-4">
+            <i class="fa-solid fa-credit-card text-emerald-400 text-xl"></i>
+        </div>
+
+        <h3 id="modalTitulo" class="text-xl font-bold text-white mb-1">
+            Ativar assinatura
+        </h3>
+
+        <p id="modalDescricao" class="text-xs text-gray-400 mb-5">
+            Você será levado ao checkout seguro do Mercado Pago.
+        </p>
+
+        <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-4 text-left mb-4">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-gray-400">Plano</span>
+                <strong id="modalPlano" class="text-xs text-white">—</strong>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-xs text-gray-400">Valor</span>
+                <strong id="modalValor" class="text-sm text-emerald-400">—</strong>
+            </div>
+        </div>
+
+        <button id="checkoutButton" onclick="irParaCheckout()"
+            class="w-full py-3.5 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-lg">
+            Continuar para o Mercado Pago
+        </button>
+
+        <p class="text-[10px] text-gray-500 mt-3 leading-relaxed">
+            A cobrança é recorrente conforme o plano escolhido.
+            Você pode cancelar a renovação e continuar usando até o fim do período já pago.
+        </p>
+
+        <div id="checkoutStatus" class="mt-4 text-xs text-gray-400"></div>
+    </div>
+</div>
+
+<footer class="w-full max-w-4xl text-center py-4 text-xs text-gray-600 border-t border-gray-800/40">
+    © 2026 Minhoca de Jardim — Ferramenta para download e preparação de mídia.
+</footer>
+
+<script>
+    const PLANOS = {
+        semanal: {
+            nome: "Semanal",
+            valor: "R$ 9,90",
+            descricao: "10 downloads por dia • renovação a cada 7 dias"
+        },
+        mensal: {
+            nome: "Mensal",
+            valor: "R$ 16,90",
+            descricao: "30 downloads por dia • renovação mensal"
+        },
+        vip: {
+            nome: "VIP Batch",
+            valor: "R$ 29,90",
+            descricao: "Downloads ilimitados + processamento em lote"
+        }
+    };
+
     let planoSelecionadoGlobal = null;
+    let checkoutUrlAtual = null;
+    let monitoramentoAtivo = false;
 
     document.addEventListener("DOMContentLoaded", () => {
         const emailSalvo = localStorage.getItem("minhoca_user_email");
+
         if (emailSalvo) {
             document.getElementById("userEmail").value = emailSalvo;
             validarEmailNoServidor(emailSalvo, false);
         }
     });
 
+    function emailValido(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    function setStatusConta(texto, tipo = "normal") {
+        const badge = document.getElementById("statusContaBadge");
+        const textoEl = document.getElementById("statusContaTexto");
+
+        textoEl.textContent = texto;
+
+        if (tipo === "vip") {
+            badge.className = "inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-950/60 border border-amber-800/40 text-amber-400 text-xs font-semibold mb-4";
+        } else {
+            badge.className = "inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 text-xs font-semibold mb-4";
+        }
+    }
+
+    function setStatusBox(message, type = "normal") {
+        const status = document.getElementById("status");
+
+        const classes = {
+            normal: "p-3 bg-gray-950/80 border border-gray-800 text-gray-300 rounded-xl animate-fade",
+            success: "p-4 bg-emerald-950/40 border border-emerald-800/60 text-emerald-400 rounded-xl animate-fade",
+            warning: "p-4 bg-amber-950/40 border border-amber-800/60 text-amber-400 rounded-xl animate-fade",
+            error: "p-3 bg-red-950/40 border border-red-800/50 text-red-400 rounded-xl animate-fade"
+        };
+
+        status.className = "mt-4 text-center text-xs sm:text-sm";
+        status.innerHTML = `<div class="${classes[type]}">${message}</div>`;
+    }
+
     async function ativarEmail() {
         const email = document.getElementById("userEmail").value.trim();
-        if (!email) {
-            alert("Por favor, digite um e-mail válido!");
+
+        if (!emailValido(email)) {
+            alert("Por favor, informe um e-mail válido.");
             return;
         }
+
         localStorage.setItem("minhoca_user_email", email);
         await validarEmailNoServidor(email, true);
     }
 
     async function validarEmailNoServidor(email, mostrarAlerta = false) {
+        if (!emailValido(email)) {
+            return;
+        }
+
         try {
-            const res = await fetch(`/api/check-email?email=${encodeURIComponent(email)}`);
+            const res = await fetch(
+                `/api/check-email?email=${encodeURIComponent(email)}`
+            );
+
             const data = await res.json();
 
-            const statusTexto = document.getElementById("statusContaTexto");
+            if (!res.ok) {
+                throw new Error(data.detail || "Não foi possível consultar o e-mail.");
+            }
 
-            if (data.is_vip) {
-                statusTexto.innerHTML = `VIP Ativo: <strong class="text-white">${email}</strong> (Acesso Ilimitado)`;
-                if (mostrarAlerta) alert("E-mail VIP confirmado! Acesso ilimitado liberado.");
+            if (data.plan === "admin" || data.is_vip) {
+                const limite = data.daily_limit === null
+                    ? "ilimitado"
+                    : `${data.downloads_today}/${data.daily_limit}`;
+
+                setStatusConta(
+                    `VIP ativo: ${email} • ${limite}`,
+                    "vip"
+                );
+
+                document.getElementById("secaoBatch").classList.remove("hidden");
+
+                if (mostrarAlerta) {
+                    alert("E-mail confirmado. Seu acesso está ativo.");
+                }
+            } else if (data.plan !== "free") {
+                setStatusConta(
+                    `${data.plan_name}: ${email} • ${data.downloads_today}/${data.daily_limit} hoje`
+                );
+
+                document.getElementById("secaoBatch").classList.add("hidden");
+
+                if (mostrarAlerta) {
+                    alert(`Plano ${data.plan_name} ativo.`);
+                }
             } else {
-                statusTexto.innerHTML = `Gratuito: <strong class="text-white">${email}</strong> (${data.downloads_today}/3 hoje)`;
-                if (mostrarAlerta) alert("E-mail ativado no plano gratuito (3 downloads/dia). Escolha um plano abaixo para liberar o acesso VIP ilimitado!");
+                setStatusConta(
+                    `Gratuito: ${email} • ${data.downloads_today}/${data.daily_limit} hoje`
+                );
+
+                document.getElementById("secaoBatch").classList.add("hidden");
+
+                if (mostrarAlerta) {
+                    alert("E-mail ativado no plano gratuito.");
+                }
+            }
+
+            await carregarAssinatura(email);
+        } catch (err) {
+            console.error(err);
+
+            if (mostrarAlerta) {
+                alert(err.message || "Erro ao consultar o servidor.");
+            }
+        }
+    }
+
+    async function carregarAssinatura(email) {
+        try {
+            const res = await fetch(
+                `/api/subscription?email=${encodeURIComponent(email)}`
+            );
+
+            const data = await res.json();
+
+            const area = document.getElementById("areaAssinatura");
+            const plano = document.getElementById("assinaturaPlano");
+            const status = document.getElementById("assinaturaStatus");
+            const cancelar = document.getElementById("cancelarButton");
+
+            if (!res.ok || !data.has_subscription) {
+                area.classList.add("hidden");
+                return;
+            }
+
+            area.classList.remove("hidden");
+
+            const planoInfo = PLANOS[data.plan];
+            plano.textContent = planoInfo
+                ? `${planoInfo.nome} • ${planoInfo.valor}`
+                : data.plan;
+
+            if (data.status === "cancelled") {
+                status.textContent =
+                    `Renovação cancelada. Acesso até ${formatarData(data.expires_at)}.`;
+                cancelar.classList.add("hidden");
+            } else if (data.status === "pending") {
+                status.textContent =
+                    "Assinatura criada. Finalize o checkout do Mercado Pago.";
+                cancelar.classList.add("hidden");
+            } else {
+                status.textContent =
+                    `Ativa. Próxima cobrança: ${formatarData(data.next_billing_at)}.`;
+                cancelar.classList.remove("hidden");
             }
         } catch (err) {
             console.error(err);
         }
     }
 
+    function formatarData(value) {
+        if (!value) return "—";
+
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return "—";
+        }
+
+        return date.toLocaleDateString("pt-BR");
+    }
+
     async function abrirModalPagamento(plano) {
+        if (!PLANOS[plano]) return;
+
         planoSelecionadoGlobal = plano;
+
         let email = document.getElementById("userEmail").value.trim();
 
-        if (!email) {
-            email = prompt("Informe seu e-mail para vincular à assinatura VIP:");
-            if (!email) return;
+        if (!emailValido(email)) {
+            email = prompt("Informe seu e-mail para vincular à assinatura:");
+
+            if (!email || !emailValido(email.trim())) {
+                return;
+            }
+
+            email = email.trim();
             document.getElementById("userEmail").value = email;
             localStorage.setItem("minhoca_user_email", email);
         }
 
-        await gerarPix(plano, email);
-    }
+        const info = PLANOS[plano];
 
-    async function gerarPix(plano, email) {
+        document.getElementById("modalPlano").textContent = info.nome;
+        document.getElementById("modalValor").textContent = info.valor;
+        document.getElementById("modalDescricao").textContent = info.descricao;
+        document.getElementById("checkoutStatus").textContent = "";
+
+        checkoutUrlAtual = null;
+
+        const button = document.getElementById("checkoutButton");
+        button.disabled = true;
+        button.textContent = "Preparando checkout...";
+
+        document.getElementById("modalPagamento").classList.remove("hidden");
+
         try {
-            const res = await fetch('/api/create-pix', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plan_type: plano, email: email })
+            const res = await fetch("/api/create-subscription", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    plan_type: plano,
+                    email: email
+                })
             });
 
             const data = await res.json();
 
-            if (res.ok) {
-                if (data.qr_code_base64) {
-                    document.getElementById("qrCodeContainer").innerHTML = `<img src="data:image/jpeg;base64,${data.qr_code_base64}" class="w-44 h-44 mx-auto rounded-lg">`;
-                } else {
-                    document.getElementById("qrCodeContainer").innerHTML = `<div class="text-xs text-gray-800 p-4">QR Code gerado com sucesso. Copie o código abaixo:</div>`;
-                }
-                
-                document.getElementById("pixCopiaCola").value = data.qr_code;
-                document.getElementById("modalPagamento").classList.remove("hidden");
-            } else {
-                alert("Erro ao gerar PIX: " + (data.detail || JSON.stringify(data)));
+            if (!res.ok) {
+                throw new Error(
+                    data.detail || "Não foi possível preparar a assinatura."
+                );
+            }
+
+            if (data.status === "already_active") {
+                fecharModalPagamento();
+                await validarEmailNoServidor(email, false);
+                alert("Você já possui um plano ativo.");
+                return;
+            }
+
+            checkoutUrlAtual = data.checkout_url;
+
+            button.disabled = false;
+            button.textContent = "Continuar para o Mercado Pago";
+
+            if (data.status === "pending") {
+                document.getElementById("checkoutStatus").textContent =
+                    "Checkout pronto. Clique no botão acima para concluir.";
             }
         } catch (err) {
-            alert("Erro de conexão ao servidor: " + err.message);
+            button.disabled = true;
+            button.textContent = "Checkout indisponível";
+            document.getElementById("checkoutStatus").textContent =
+                err.message || "Erro ao preparar a assinatura.";
         }
     }
 
-    function trocarAbaPagamento(tipo) {
-        const pixTab = document.getElementById("tabPixBtn");
-        const cartaoTab = document.getElementById("tabCartaoBtn");
-        const conteudoPix = document.getElementById("conteudoPix");
-        const conteudoCartao = document.getElementById("conteudoCartao");
+    function irParaCheckout() {
+        if (!checkoutUrlAtual) {
+            return;
+        }
 
-        if (tipo === 'pix') {
-            pixTab.className = "flex-1 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-500";
-            cartaoTab.className = "flex-1 py-2 text-xs font-bold text-gray-500 hover:text-gray-300";
-            conteudoPix.classList.remove("hidden");
-            conteudoCartao.classList.add("hidden");
-        } else {
-            cartaoTab.className = "flex-1 py-2 text-xs font-bold text-emerald-400 border-b-2 border-emerald-500";
-            pixTab.className = "flex-1 py-2 text-xs font-bold text-gray-500 hover:text-gray-300";
-            conteudoCartao.classList.remove("hidden");
-            conteudoPix.classList.add("hidden");
+        window.open(checkoutUrlAtual, "_blank", "noopener,noreferrer");
+
+        document.getElementById("checkoutStatus").textContent =
+            "Checkout aberto. Assim que o pagamento for confirmado, atualize seu e-mail aqui.";
+
+        iniciarMonitoramento();
+    }
+
+    function iniciarMonitoramento() {
+        if (monitoramentoAtivo) return;
+
+        monitoramentoAtivo = true;
+
+        let tentativas = 0;
+        const maxTentativas = 24;
+
+        const timer = setInterval(async () => {
+            tentativas++;
+
+            const email = document.getElementById("userEmail").value.trim();
+
+            if (emailValido(email)) {
+                await validarEmailNoServidor(email, false);
+            }
+
+            if (tentativas >= maxTentativas) {
+                clearInterval(timer);
+                monitoramentoAtivo = false;
+            }
+        }, 5000);
+    }
+
+    function fecharModalPagamento() {
+        document.getElementById("modalPagamento").classList.add("hidden");
+        checkoutUrlAtual = null;
+    }
+
+    async function cancelarAssinatura() {
+        const email = document.getElementById("userEmail").value.trim();
+
+        if (!emailValido(email)) {
+            alert("Informe seu e-mail primeiro.");
+            return;
+        }
+
+        const confirmou = confirm(
+            "Cancelar a renovação desta assinatura?\n\n" +
+            "Você continuará com acesso até o fim do período já pago."
+        );
+
+        if (!confirmou) return;
+
+        try {
+            const res = await fetch("/api/cancel-subscription", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    plan_type: "cancel",
+                    email: email
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(
+                    data.detail || "Não foi possível cancelar."
+                );
+            }
+
+            alert(
+                `Renovação cancelada. Seu acesso continua até ${formatarData(data.expires_at)}.`
+            );
+
+            await validarEmailNoServidor(email, false);
+        } catch (err) {
+            alert(err.message || "Erro ao cancelar assinatura.");
         }
     }
 
     async function baixarVideo() {
         const urlInput = document.getElementById("url").value.trim();
         const userEmail = document.getElementById("userEmail").value.trim();
-        const statusDiv = document.getElementById("status");
+        const button = document.getElementById("downloadButton");
 
         if (!urlInput) {
-            statusDiv.innerHTML = `<div class="p-3 bg-red-950/40 border border-red-800/50 text-red-400 rounded-xl animate-fade">Insira uma URL válida para continuar.</div>`;
+            setStatusBox("Insira uma URL para continuar.", "error");
             return;
         }
 
-        statusDiv.innerHTML = `
-            <div class="p-4 bg-gray-950/80 border border-gray-800 rounded-xl flex items-center justify-center gap-3 text-emerald-400 animate-fade">
-                <i class="fa-solid fa-spinner animate-spin text-base"></i>
-                <span>Processando vídeo, gerando novo hash e limpando metadados Exif...</span>
-            </div>`;
+        button.disabled = true;
+        button.classList.add("opacity-60", "cursor-not-allowed");
+
+        setStatusBox(
+            '<div class="flex items-center justify-center gap-3 text-emerald-400">' +
+            '<i class="fa-solid fa-spinner animate-spin text-base"></i>' +
+            '<span>Baixando e preparando seu vídeo...</span>' +
+            '</div>',
+            "normal"
+        );
 
         try {
-            let endpoint = `/api/download?video_url=${encodeURIComponent(urlInput)}`;
-            if (userEmail) endpoint += `&user_email=${encodeURIComponent(userEmail)}`;
+            let endpoint =
+                `/api/download?video_url=${encodeURIComponent(urlInput)}`;
 
-            const response = await fetch(endpoint, { method: "POST" });
+            if (emailValido(userEmail)) {
+                endpoint += `&user_email=${encodeURIComponent(userEmail)}`;
+            }
+
+            const response = await fetch(endpoint, {
+                method: "POST"
+            });
+
             const data = await response.json();
 
-            if (response.ok) {
-                statusDiv.innerHTML = `
-                    <div class="p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-xl flex flex-col items-center gap-3 animate-fade">
-                        <span class="text-emerald-400 font-bold flex items-center gap-2 text-xs sm:text-sm">
-                            <i class="fa-solid fa-circle-check text-emerald-400"></i> Sucesso! DNA Digital alterado e metadados removidos.
-                        </span>
-                        <a href="${data.download_url}" download="video_minhoca.mp4" target="_blank" class="w-full sm:w-auto">
-                            <button class="w-full py-2.5 px-6 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg hover:opacity-90">
-                                <i class="fa-solid fa-file-arrow-down"></i> Baixar Arquivo Limpo (.MP4)
-                            </button>
-                        </a>
-                    </div>`;
-            } else {
+            if (!response.ok) {
                 if (response.status === 429) {
-                    statusDiv.innerHTML = `
-                        <div class="p-4 bg-amber-950/40 border border-amber-800/60 text-amber-400 rounded-xl animate-fade">
-                            <p class="font-bold mb-1">Limite diário Gratuito atingido (3/3)</p>
-                            <p class="text-xs mb-3">Ative seu e-mail VIP acima ou escolha um plano para liberar os downloads sem limites.</p>
-                            <button onclick="document.getElementById('secaoPlanos').scrollIntoView({behavior: 'smooth'})" class="py-2 px-4 bg-amber-500 text-gray-950 font-bold text-xs rounded-xl shadow-md">Ver Planos VIP</button>
-                        </div>`;
+                    setStatusBox(
+                        '<p class="font-bold mb-1">Limite diário atingido.</p>' +
+                        '<p class="text-xs mb-3">Escolha um plano para continuar processando seus vídeos.</p>' +
+                        '<button onclick="document.getElementById(\'secaoPlanos\').scrollIntoView({behavior:\'smooth\'})" ' +
+                        'class="py-2 px-4 bg-amber-500 text-gray-950 font-bold text-xs rounded-xl shadow-md">Ver planos</button>',
+                        "warning"
+                    );
                 } else {
-                    statusDiv.innerHTML = `<div class="p-3 bg-red-950/40 border border-red-800/50 text-red-400 rounded-xl animate-fade">${data.detail}</div>`;
+                    setStatusBox(
+                        escapeHtml(data.detail || "Não foi possível processar o vídeo."),
+                        "error"
+                    );
                 }
+
+                return;
+            }
+
+            const link = document.createElement("a");
+            link.href = data.download_url;
+            link.download = "video_minhoca.mp4";
+            link.target = "_blank";
+            link.rel = "noopener";
+
+            const wrapper = document.createElement("div");
+            wrapper.className =
+                "p-4 bg-emerald-950/40 border border-emerald-800/60 rounded-xl flex flex-col items-center gap-3 animate-fade";
+
+            const message = document.createElement("span");
+            message.className =
+                "text-emerald-400 font-bold flex items-center gap-2 text-xs sm:text-sm";
+            message.innerHTML =
+                '<i class="fa-solid fa-circle-check"></i> Arquivo preparado com sucesso.';
+
+            const downloadButton = document.createElement("button");
+            downloadButton.className =
+                "w-full sm:w-auto py-2.5 px-6 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg hover:opacity-90";
+            downloadButton.innerHTML =
+                '<i class="fa-solid fa-file-arrow-down"></i> Baixar arquivo MP4';
+
+            downloadButton.addEventListener("click", () => {
+                link.click();
+            });
+
+            wrapper.appendChild(message);
+            wrapper.appendChild(downloadButton);
+
+            const status = document.getElementById("status");
+            status.innerHTML = "";
+            status.appendChild(wrapper);
+
+            if (emailValido(userEmail)) {
+                await validarEmailNoServidor(userEmail, false);
             }
         } catch (err) {
-            statusDiv.innerHTML = `<div class="p-3 bg-red-950/40 border border-red-800/50 text-red-400 rounded-xl animate-fade">Erro ao se conectar ao servidor.</div>`;
+            setStatusBox(
+                "Erro ao se conectar ao servidor.",
+                "error"
+            );
+        } finally {
+            button.disabled = false;
+            button.classList.remove("opacity-60", "cursor-not-allowed");
         }
     }
 
-    const fecharModalPagamento = () => document.getElementById("modalPagamento").classList.add("hidden");
-    const copiarPix = () => {
-        const input = document.getElementById("pixCopiaCola");
-        input.select();
-        document.execCommand("copy");
-        alert("Código PIX copiado com sucesso!");
+    async function processarLote() {
+        const email = document.getElementById("userEmail").value.trim();
+        const textarea = document.getElementById("batchUrls");
+        const status = document.getElementById("batchStatus");
+
+        if (!emailValido(email)) {
+            status.textContent = "Ative seu e-mail VIP antes de processar um lote.";
+            status.className = "mt-4 text-xs text-red-400";
+            return;
+        }
+
+        const urls = textarea.value
+            .split(/\r?\n/)
+            .map(item => item.trim())
+            .filter(Boolean);
+
+        if (!urls.length) {
+            status.textContent = "Cole pelo menos uma URL.";
+            status.className = "mt-4 text-xs text-red-400";
+            return;
+        }
+
+        status.textContent = "Processando lote...";
+        status.className = "mt-4 text-xs text-amber-400";
+
+        try {
+            const response = await fetch("/api/download-batch", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    urls,
+                    user_email: email
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail || "Não foi possível processar o lote."
+                );
+            }
+
+            status.innerHTML = "";
+
+            const summary = document.createElement("div");
+            summary.className = "space-y-2";
+
+            data.results.forEach((item, index) => {
+                const row = document.createElement("div");
+                row.className =
+                    "p-3 rounded-xl border border-gray-800 bg-gray-950/60 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between";
+
+                const text = document.createElement("span");
+                text.className = "text-gray-300 break-all";
+                text.textContent =
+                    `${index + 1}. ${item.url}`;
+
+                row.appendChild(text);
+
+                if (item.status === "success") {
+                    const link = document.createElement("a");
+                    link.href = item.download_url;
+                    link.target = "_blank";
+                    link.rel = "noopener";
+                    link.download = "video_minhoca.mp4";
+                    link.className =
+                        "text-emerald-400 font-bold whitespace-nowrap";
+                    link.textContent = "Baixar";
+                    row.appendChild(link);
+                } else {
+                    const error = document.createElement("span");
+                    error.className = "text-red-400";
+                    error.textContent = "Erro";
+                    row.appendChild(error);
+                }
+
+                summary.appendChild(row);
+            });
+
+            status.appendChild(summary);
+        } catch (err) {
+            status.textContent =
+                err.message || "Erro ao processar o lote.";
+            status.className = "mt-4 text-xs text-red-400";
+        }
     }
-    </script>
+
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = String(value);
+        return div.innerHTML;
+    }
+
+    document.getElementById("url").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            baixarVideo();
+        }
+    });
+</script>
+
 </body>
 </html>
