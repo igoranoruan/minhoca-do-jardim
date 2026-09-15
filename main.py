@@ -5,7 +5,7 @@ import hmac
 import hashlib
 import subprocess
 from datetime import datetime, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit, parse_qsl, urlencode
 
 import requests
 import yt_dlp
@@ -58,8 +58,8 @@ PLAN_CONFIG = {
     "semanal": {
         "name": "Semanal",
         "amount": 9.90,
-        "frequency": 1,
-        "frequency_type": "weeks",
+        "frequency": 7,
+        "frequency_type": "days",
         "limit": 10,
         "label": "10 downloads por dia",
     },
@@ -796,6 +796,42 @@ def mp_headers(token: str):
     }
 
 
+def normalize_subscription_checkout_url(init_point: str | None) -> str | None:
+    """
+    Normaliza o checkout retornado pelo Mercado Pago.
+
+    Alguns retornos do checkout podem incluir parâmetros auxiliares que não
+    fazem parte do init_point documentado para o checkout de assinaturas.
+    O parâmetro `activation` não é necessário para o checkout padrão e,
+    quando presente, pode gerar uma página inválida no navegador.
+
+    Se o Mercado Pago devolver um init_point normal, ele permanece intacto.
+    """
+    if not init_point:
+        return None
+
+    try:
+        parts = urlsplit(init_point)
+        query = parse_qsl(parts.query, keep_blank_values=True)
+        filtered_query = [
+            (key, value)
+            for key, value in query
+            if key.lower() != "activation"
+        ]
+
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(filtered_query),
+                parts.fragment,
+            )
+        )
+    except Exception:
+        return init_point
+
+
 def mp_create_subscription(
     email: str,
     plan_type: str,
@@ -862,6 +898,10 @@ def mp_create_subscription(
             status_code=502,
             detail="Mercado Pago não retornou o checkout da assinatura.",
         )
+
+    data["init_point"] = normalize_subscription_checkout_url(
+        data.get("init_point")
+    )
 
     return data
 
@@ -1151,20 +1191,15 @@ def activate_user_from_pix_payment(
     if plan_type not in PLAN_CONFIG:
         return False
 
-    email = (
-        payment.get("payer", {}).get("email")
-        or transaction.email
-        or ""
-    )
-
-    if not email or not transaction.email:
+    # Para Pix, a identidade da conta do Minhoca é o e-mail informado
+    # no checkout e salvo na transação. O payer.email retornado pelo
+    # Mercado Pago pode vir ausente ou mascarado, então ele não pode
+    # bloquear a ativação de um pagamento já aprovado.
+    if not transaction.email:
         return False
 
-    email = normalize_email(email)
     expected_email = normalize_email(transaction.email)
-
-    if email != expected_email:
-        return False
+    email = expected_email
 
     payment_amount = payment.get("transaction_amount")
     expected_amount = transaction.amount
@@ -1577,7 +1612,7 @@ def create_subscription(
                 return {
                     "status": "pending",
                     "subscription_id": user.subscription_id,
-                    "checkout_url": subscription.get("init_point"),
+                    "checkout_url": normalize_subscription_checkout_url(subscription.get("init_point")),
                     "plan": user.plan_type,
                 }
         except Exception:
@@ -1615,7 +1650,7 @@ def create_subscription(
     return {
         "status": "pending",
         "subscription_id": str(subscription["id"]),
-        "checkout_url": subscription["init_point"],
+        "checkout_url": normalize_subscription_checkout_url(subscription.get("init_point")),
         "plan": plan_type,
         "amount": PLAN_CONFIG[plan_type]["amount"],
     }

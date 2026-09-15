@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minhoca de Jardim — Baixe, limpe e prepare seus vídeos</title>
+    <title>Minhoca de Jardim — Reutilize o conteúdo que já funcionou</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,367 +14,317 @@
 
     <style>
         * { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-        body { background-color: #080c14; color: #f3f4f6; }
-        .glow-emerald { box-shadow: 0 0 35px rgba(16, 185, 129, 0.12); }
-        .glow-hover:hover { box-shadow: 0 0 20px rgba(16, 185, 129, 0.25); }
+        html { scroll-behavior: smooth; }
+        body { background: #050810; color: #f8fafc; }
+        .bg-card { background: #0b1220; border: 1px solid #1b2738; }
+        .bg-card-soft { background: #09101c; border: 1px solid #172235; }
+        .hero-glow { box-shadow: 0 24px 80px rgba(16, 185, 129, 0.08); }
+        .glow-hover { transition: box-shadow .2s ease, border-color .2s ease, transform .2s ease; }
+        .glow-hover:hover { box-shadow: 0 18px 50px rgba(16, 185, 129, 0.10); }
         .bg-gradient-cyber { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
-        .bg-card { background-color: #0f172a; border: 1px solid #1e293b; }
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.75);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade {
-            animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .text-gradient { background: linear-gradient(135deg, #34d399 0%, #5eead4 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .section-line { border-color: rgba(148, 163, 184, 0.12); }
+        .input-focus:focus { border-color: rgba(16, 185, 129, .75); box-shadow: 0 0 0 3px rgba(16, 185, 129, .08); }
+        .faq-item[open] summary i { transform: rotate(45deg); }
+        .faq-item summary::-webkit-details-marker { display: none; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn .25s ease-out forwards; }
+        @media (max-width: 640px) {
+            .hero-title { font-size: 2.25rem; line-height: 1.06; }
         }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col justify-between items-center p-4 sm:p-6">
-
-<header class="w-full max-w-4xl flex flex-col sm:flex-row justify-between items-center gap-4 py-4 glass-panel px-6 rounded-2xl mb-6 shadow-xl">
-    <div class="text-center sm:text-left">
-        <span class="font-extrabold text-2xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200 block">
-            Minhoca de Jardim
-        </span>
-        <span class="text-[11px] font-semibold tracking-wide text-gray-400 block mt-0.5">
-            Download, processamento e limpeza de arquivos para criadores
-        </span>
-    </div>
-
-    <div class="w-full sm:w-auto flex items-center gap-1.5">
-        <div class="relative flex-1 sm:w-64">
-            <i class="fa-solid fa-envelope absolute left-3 top-3 text-xs text-gray-500"></i>
-            <input id="userEmail" type="email" autocomplete="email"
-                placeholder="Seu e-mail..."
-                class="w-full pl-8 pr-3 py-2 bg-gray-950/90 border border-gray-800 rounded-xl text-xs text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all">
-        </div>
-        <button onclick="ativarEmail()"
-            class="px-4 py-2 bg-gradient-cyber hover:opacity-90 text-gray-950 font-extrabold text-xs rounded-xl transition-all whitespace-nowrap shadow-md">
-            Ativar
-        </button>
-    </div>
-</header>
-
-<main class="w-full max-w-4xl my-auto py-2">
-
-    <div class="text-center mb-6">
-        <div id="statusContaBadge"
-            class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 text-xs font-semibold mb-4">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span id="statusContaTexto">Pronto para processar</span>
-        </div>
-
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-3 text-white leading-tight">
-            SEU VÍDEO LIMPO.<br>
-            <span class="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-200">
-                PRONTO PRA POSTAR.
-            </span>
-        </h1>
-
-        <p class="text-gray-400 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
-            Cole o link do TikTok, Reels, Shorts ou Pinterest. A Minhoca baixa o arquivo,
-            remove metadados do contêiner e gera uma nova versão em MP4.
-        </p>
-    </div>
-
-    <div class="flex flex-wrap justify-center gap-2 mb-6">
-        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
-            <i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i>
-            Limpeza de metadados
-        </span>
-        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
-            <i class="fa-solid fa-file-video text-emerald-400"></i>
-            Nova versão em MP4
-        </span>
-        <span class="px-3 py-1.5 text-xs font-medium text-gray-300 bg-card rounded-xl flex items-center gap-2 border border-emerald-500/10 shadow-sm">
-            <i class="fa-solid fa-ban text-red-400"></i>
-            Sem anúncios
-        </span>
-    </div>
-
-    <div class="bg-emerald-950/20 border border-emerald-800/30 p-4 rounded-2xl mb-6 flex items-start gap-3 text-left backdrop-blur-md">
-        <i class="fa-solid fa-lightbulb text-amber-400 text-base mt-0.5"></i>
-        <div class="text-xs text-gray-300 leading-relaxed">
-            <strong class="text-emerald-400 font-semibold block mb-0.5">
-                Dica para reutilização:
-            </strong>
-            Se você pretende editar o conteúdo novamente, prefira baixar um arquivo sem textos
-            ou elementos fixos que você não queira manter. Assim você pode adaptar a edição
-            para o seu próprio formato.
-        </div>
-    </div>
-
-    <div class="bg-card p-4 sm:p-6 rounded-2xl glow-emerald mb-8 relative border border-emerald-500/20 shadow-2xl">
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="relative flex-1">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">
-                    <i class="fa-solid fa-link"></i>
-                </div>
-                <input id="url" type="url"
-                    placeholder="Cole a URL do TikTok, Reels, Shorts, Pinterest..."
-                    class="w-full pl-11 pr-4 py-3.5 bg-gray-950/90 border border-gray-800 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition-all text-xs sm:text-sm">
+<body class="min-h-screen bg-[#050810]">
+    <div class="w-full">
+        <!-- HEADER -->
+        <header class="w-full border-b border-slate-800/70 bg-[#050810]/95">
+            <div class="max-w-6xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
+                <a href="#topo" class="flex items-center gap-3 min-w-0">
+                    <img src="/static/favicon.png" alt="" class="w-9 h-9 object-contain" aria-hidden="true">
+                    <span class="font-extrabold tracking-tight text-white text-base sm:text-lg whitespace-nowrap">MINHOCA DE JARDIM</span>
+                </a>
+                <button type="button" onclick="abrirAcesso()" class="text-sm font-semibold text-slate-300 hover:text-white transition-colors px-2 py-1">
+                    Acesso
+                </button>
             </div>
+        </header>
 
-            <button id="downloadButton" onclick="baixarVideo()"
-                class="py-3.5 px-6 bg-gradient-cyber hover:opacity-95 text-gray-950 font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap glow-hover active:scale-95">
-                <i class="fa-solid fa-download"></i>
-                Limpar & Baixar
-            </button>
-        </div>
-
-        <div id="status" class="mt-4 text-center text-xs sm:text-sm"></div>
-    </div>
-
-    <div id="secaoPlanos" class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-
-        <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-emerald-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
-            <div>
-                <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Semanal</div>
-                <div class="text-3xl font-extrabold text-white mb-1">R$ 9,90</div>
-                <div class="text-[11px] text-emerald-500 font-medium mb-4">
-                    7 dias • Pix manual ou cartão recorrente
+        <main id="topo" class="max-w-6xl mx-auto px-5 sm:px-8">
+            <!-- HERO -->
+            <section class="pt-16 sm:pt-24 pb-12 sm:pb-16 text-center">
+                <div id="statusContaBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs font-semibold mb-6">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="statusContaTexto">Pronto para processar</span>
                 </div>
 
-                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        10 downloads por dia
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        Limpeza de metadados
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        Processamento rápido
-                    </li>
-                </ul>
-            </div>
-
-            <button onclick="abrirModalPagamento('semanal')"
-                class="w-full py-3 bg-gray-800 hover:bg-emerald-600 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
-                Assinar Semanal
-            </button>
-        </div>
-
-        <div class="bg-card p-6 rounded-2xl border-2 border-emerald-500 relative glow-emerald text-left flex flex-col justify-between shadow-2xl">
-            <span class="absolute -top-3.5 right-4 bg-emerald-500 text-gray-950 text-[10px] font-black uppercase px-3 py-0.5 rounded-full shadow-md">
-                Mais Vendido
-            </span>
-
-            <div>
-                <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider mb-1">Mensal</div>
-                <div class="text-3xl font-extrabold text-white mb-1">R$ 16,90</div>
-                <div class="text-[11px] text-emerald-400 font-medium mb-4">
-                    30 dias • Pix manual ou cartão recorrente
-                </div>
-
-                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        30 downloads por dia
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        Limpeza de metadados
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-emerald-400 text-xs"></i>
-                        Processamento rápido
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-shield-halved text-emerald-400 text-xs"></i>
-                        Cancele quando quiser
-                    </li>
-                </ul>
-            </div>
-
-            <button onclick="abrirModalPagamento('mensal')"
-                class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs transition-all hover:opacity-90 shadow-lg">
-                Assinar Mensal
-            </button>
-        </div>
-
-        <div class="bg-card p-6 rounded-2xl border border-gray-800 hover:border-amber-500/40 transition-all text-left flex flex-col justify-between shadow-xl">
-            <div>
-                <div class="text-xs text-amber-400 font-bold uppercase tracking-wider mb-1">VIP Batch</div>
-                <div class="text-3xl font-extrabold text-white mb-1">R$ 29,90</div>
-                <div class="text-[11px] text-amber-400 font-medium mb-4">
-                    30 dias • Pix manual ou cartão recorrente
-                </div>
-
-                <ul class="space-y-2.5 text-xs text-gray-300 mb-6">
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
-                        Downloads ilimitados
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
-                        Processamento em lote
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-check text-amber-400 text-xs"></i>
-                        Limpeza de metadados
-                    </li>
-                    <li class="flex items-center gap-2">
-                        <i class="fa-solid fa-bolt text-amber-400 text-xs"></i>
-                        Para quem processa muito conteúdo
-                    </li>
-                </ul>
-            </div>
-
-            <button onclick="abrirModalPagamento('vip')"
-                class="w-full py-3 bg-gray-800 hover:bg-amber-500 hover:text-gray-950 text-white font-bold rounded-xl text-xs transition-all shadow-md">
-                Assinar VIP Batch
-            </button>
-        </div>
-    </div>
-
-    <div id="areaAssinatura" class="hidden bg-card border border-gray-800 rounded-2xl p-5 mb-8">
-        <div class="flex flex-col sm:flex-row justify-between gap-4">
-            <div>
-                <div class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-1">Minha assinatura</div>
-                <div id="assinaturaPlano" class="text-sm font-bold text-white">—</div>
-                <div id="assinaturaStatus" class="text-xs text-gray-400 mt-1">—</div>
-            </div>
-            <button id="cancelarButton" onclick="cancelarAssinatura()"
-                class="hidden px-4 py-2 rounded-xl bg-gray-800 hover:bg-red-600 text-white text-xs font-bold transition-all">
-                Cancelar renovação
-            </button>
-        </div>
-    </div>
-
-    <div id="secaoBatch" class="hidden bg-card border border-amber-500/20 rounded-2xl p-5 mb-8">
-        <div class="flex items-start gap-3 mb-4">
-            <i class="fa-solid fa-layer-group text-amber-400 mt-1"></i>
-            <div>
-                <h2 class="text-sm font-extrabold text-white">VIP Batch — processe vários links</h2>
-                <p class="text-xs text-gray-400 mt-1">
-                    Cole até 20 URLs, uma por linha. Disponível somente no VIP Batch.
+                <p class="text-emerald-400 text-[11px] sm:text-xs font-extrabold tracking-[0.18em] uppercase mb-4">
+                    FERRAMENTA PARA REUTILIZAÇÃO DE CONTEÚDO
                 </p>
-            </div>
-        </div>
 
-        <textarea id="batchUrls" rows="6"
-            placeholder="https://www.tiktok.com/...
-https://www.instagram.com/reel/...
-https://www.youtube.com/shorts/..."
-            class="w-full bg-gray-950 border border-gray-800 rounded-xl p-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 resize-y"></textarea>
+                <h1 class="hero-title text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight text-white max-w-4xl mx-auto">
+                    Reutilize o conteúdo que já funcionou.
+                </h1>
 
-        <button onclick="processarLote()"
-            class="w-full mt-3 py-3 bg-amber-500 hover:bg-amber-400 text-gray-950 font-extrabold rounded-xl text-xs transition-all">
-            <i class="fa-solid fa-gears mr-1"></i>
-            Processar Lote
-        </button>
+                <p class="mt-5 text-slate-400 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">
+                    Baixe vídeos do TikTok, Instagram Reels, YouTube Shorts e Pinterest. Prepare uma nova versão em MP4 e leve o arquivo para editar e adaptar.
+                </p>
 
-        <div id="batchStatus" class="mt-4 text-xs"></div>
-    </div>
+                <div class="max-w-3xl mx-auto mt-9">
+                    <div class="bg-card p-2 rounded-2xl hero-glow">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <i class="fa-solid fa-link absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none"></i>
+                                <input id="url" type="url" autocomplete="off"
+                                    placeholder="Cole o link do vídeo…"
+                                    class="input-focus w-full h-14 pl-11 pr-4 bg-[#060b14] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none text-sm transition-all">
+                            </div>
+                            <button id="downloadButton" onclick="baixarVideo()"
+                                class="h-14 px-6 sm:px-8 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl transition-all hover:brightness-110 active:scale-[.99] flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+                                <i class="fa-solid fa-download"></i>
+                                Processar e baixar
+                            </button>
+                        </div>
+                        <div id="status" class="mt-3 text-center text-xs sm:text-sm"></div>
+                    </div>
 
-    <p class="text-center text-xs text-gray-500 mb-6">
-        <i class="fa-solid fa-lock text-emerald-500"></i>
-        Pagamento processado pelo Mercado Pago.
-        Pix não renova automaticamente; cartão pode renovar conforme o plano.
-    </p>
-</main>
-
-<div id="modalPagamento"
-    class="fixed inset-0 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 z-50 animate-fade">
-    <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-emerald-500/30 text-center relative shadow-2xl max-h-[90vh] overflow-y-auto">
-        <button onclick="fecharModalPagamento()"
-            class="absolute top-4 right-4 text-gray-400 hover:text-white transition-all">
-            <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
-
-        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-950/60 border border-emerald-500/20 flex items-center justify-center mb-4">
-            <i class="fa-solid fa-wallet text-emerald-400 text-xl"></i>
-        </div>
-
-        <h3 id="modalTitulo" class="text-xl font-bold text-white mb-1">
-            Escolha como pagar
-        </h3>
-
-        <p id="modalDescricao" class="text-xs text-gray-400 mb-5">
-            Escolha Pix para pagar uma vez ou cartão para ativar a renovação automática.
-        </p>
-
-        <div class="bg-gray-950/80 border border-gray-800 rounded-xl p-4 text-left mb-4">
-            <div class="flex justify-between items-center mb-2">
-                <span class="text-xs text-gray-400">Plano</span>
-                <strong id="modalPlano" class="text-xs text-white">—</strong>
-            </div>
-            <div class="flex justify-between items-center">
-                <span class="text-xs text-gray-400">Valor</span>
-                <strong id="modalValor" class="text-sm text-emerald-400">—</strong>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2 mb-4">
-            <button id="metodoPixBtn" onclick="trocarMetodoPagamento('pix')"
-                class="py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all">
-                <i class="fa-solid fa-qrcode mr-1"></i> PIX
-                <span class="block text-[9px] font-medium text-gray-400 mt-0.5">Sem renovação automática</span>
-            </button>
-            <button id="metodoCartaoBtn" onclick="trocarMetodoPagamento('cartao')"
-                class="py-3 rounded-xl border border-gray-800 bg-gray-950/50 text-gray-400 text-xs font-extrabold transition-all">
-                <i class="fa-solid fa-credit-card mr-1"></i> CARTÃO
-                <span class="block text-[9px] font-medium text-gray-500 mt-0.5">Renovação automática</span>
-            </button>
-        </div>
-
-        <div id="conteudoPix">
-            <div class="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4 mb-3">
-                <div id="pixQrContainer" class="bg-white rounded-xl p-3 min-h-12 flex items-center justify-center mb-3">
-                    <span class="text-xs text-gray-500">Clique em gerar Pix.</span>
-                </div>
-                <input id="pixCopiaCola" type="text" readonly
-                    class="w-full bg-gray-950 border border-gray-800 text-[10px] p-3 rounded-xl text-gray-300 text-center mb-2 focus:outline-none select-all">
-                <button id="gerarPixButton" onclick="gerarPix()"
-                    class="w-full py-3 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-md">
-                    Gerar Pix
-                </button>
-                <button id="copiarPixButton" onclick="copiarPix()" disabled
-                    class="w-full mt-2 py-2.5 bg-gray-800 text-gray-300 font-bold rounded-xl text-xs hover:bg-gray-700 transition-all disabled:opacity-40">
-                    Copiar Pix Copia e Cola
-                </button>
-            </div>
-            <div id="pixStatus" class="text-xs text-gray-400"></div>
-            <p class="text-[10px] text-gray-500 mt-3 leading-relaxed">
-                O Pix libera o período contratado após a confirmação. Não há cobrança automática.
-            </p>
-        </div>
-
-        <div id="conteudoCartao" class="hidden">
-            <div class="bg-blue-950/20 border border-blue-800/30 rounded-xl p-4 mb-4 text-left">
-                <div class="flex items-start gap-3">
-                    <i class="fa-solid fa-credit-card text-blue-400 mt-0.5"></i>
-                    <div>
-                        <strong class="text-xs text-white block">Pagamento recorrente</strong>
-                        <span class="text-[10px] text-gray-400 leading-relaxed">
-                            O Mercado Pago fará a cobrança conforme a frequência do plano. Você pode cancelar a renovação a qualquer momento.
-                        </span>
+                    <div class="flex flex-wrap justify-center gap-3 mt-5 text-xs text-slate-400">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Limpeza de metadados</span>
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Nova versão em MP4</span>
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-check text-emerald-400"></i> Sem anúncios</span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <button id="checkoutButton" onclick="prepararCheckoutCartao()"
-                class="w-full py-3.5 bg-gradient-cyber text-gray-950 font-extrabold rounded-xl text-xs hover:opacity-90 transition-all shadow-lg">
-                Continuar com cartão
-            </button>
-            <div id="checkoutStatus" class="mt-4 text-xs text-gray-400"></div>
+            <!-- PROCESSO -->
+            <section class="py-12 sm:py-16 border-t section-line">
+                <div class="max-w-3xl mx-auto text-center">
+                    <p class="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">COMO FUNCIONA</p>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Do link ao seu editor, sem complicação.</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                    <div class="bg-card-soft rounded-2xl p-6">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">01</div>
+                        <h3 class="font-bold text-white mb-2">Rápido</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed">Cole o link e processe direto no aplicativo.</p>
+                    </div>
+                    <div class="bg-card-soft rounded-2xl p-6">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">02</div>
+                        <h3 class="font-bold text-white mb-2">Arquivo preparado</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed">Limpeza de metadados e processamento para gerar uma nova versão em MP4.</p>
+                    </div>
+                    <div class="bg-card-soft rounded-2xl p-6">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">03</div>
+                        <h3 class="font-bold text-white mb-2">Pronto para reutilizar</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed">Baixe o arquivo e leve para seu editor para adaptar ao seu próprio formato.</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 bg-card rounded-2xl p-6 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div class="w-11 h-11 shrink-0 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-300">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">Vai editar antes de publicar?</h3>
+                        <p class="text-sm text-slate-400 mt-1 leading-relaxed">Leve o arquivo para seu editor e adapte ao seu próprio formato antes de publicar.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PLANOS -->
+            <section id="secaoPlanos" class="py-12 sm:py-16 border-t section-line">
+                <div class="max-w-3xl mx-auto text-center">
+                    <p class="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">PLANOS</p>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Escolha o acesso que faz sentido para você.</h2>
+                    <p class="text-sm text-slate-400 mt-3">Comece simples e escolha o plano conforme o volume de conteúdo que você processa.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                    <div class="bg-card rounded-2xl p-6 flex flex-col">
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">Semanal</div>
+                        <div class="mt-3 text-4xl font-extrabold text-white">R$ 9,90</div>
+                        <div class="text-xs text-slate-500 mt-1">7 dias</div>
+                        <ul class="mt-6 space-y-3 text-sm text-slate-300 flex-1">
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>10 downloads/dia</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Processamento de vídeo</li>
+                        </ul>
+                        <button onclick="abrirModalPagamento('semanal')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Assinar Semanal</button>
+                    </div>
+
+                    <div class="bg-card rounded-2xl p-6 flex flex-col border-emerald-500/70 ring-1 ring-emerald-500/50 relative">
+                        <span class="absolute -top-3 right-5 bg-emerald-400 text-slate-950 text-[10px] font-black uppercase tracking-wide px-3 py-1 rounded-full">Recomendado</span>
+                        <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Mensal</div>
+                        <div class="mt-3 text-4xl font-extrabold text-white">R$ 16,90</div>
+                        <div class="text-xs text-slate-500 mt-1">30 dias</div>
+                        <ul class="mt-6 space-y-3 text-sm text-slate-300 flex-1">
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>30 downloads/dia</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Processamento de vídeo</li>
+                        </ul>
+                        <button onclick="abrirModalPagamento('mensal')" class="mt-7 w-full h-12 rounded-xl bg-gradient-cyber text-slate-950 font-extrabold text-sm transition-all hover:brightness-110">Assinar Mensal</button>
+                    </div>
+
+                    <div class="bg-card rounded-2xl p-6 flex flex-col">
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider">VIP Batch</div>
+                        <div class="mt-3 text-4xl font-extrabold text-white">R$ 29,90</div>
+                        <div class="text-xs text-slate-500 mt-1">30 dias</div>
+                        <ul class="mt-6 space-y-3 text-sm text-slate-300 flex-1">
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Downloads ilimitados</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Downloads em lote</li>
+                            <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
+                        </ul>
+                        <button onclick="abrirModalPagamento('vip')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Assinar VIP Batch</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ASSINATURA -->
+            <section id="areaAssinatura" class="hidden py-8">
+                <div class="bg-card rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Minha assinatura</div>
+                        <div id="assinaturaPlano" class="text-base font-bold text-white">—</div>
+                        <div id="assinaturaStatus" class="text-sm text-slate-400 mt-1">—</div>
+                    </div>
+                    <button id="cancelarButton" onclick="cancelarAssinatura()" class="hidden px-4 py-2 rounded-xl bg-slate-800 hover:bg-red-600 text-white text-xs font-bold transition-colors">Cancelar renovação</button>
+                </div>
+            </section>
+
+            <!-- BATCH -->
+            <section id="secaoBatch" class="hidden py-8">
+                <div class="bg-card rounded-2xl p-6 border-amber-500/30">
+                    <div class="flex items-start gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-xl bg-amber-950/40 border border-amber-700/40 flex items-center justify-center text-amber-400"><i class="fa-solid fa-layer-group"></i></div>
+                        <div>
+                            <h2 class="text-base font-extrabold text-white">VIP Batch — processe vários links</h2>
+                            <p class="text-sm text-slate-400 mt-1">Cole até 20 URLs, uma por linha. Disponível somente no VIP Batch.</p>
+                        </div>
+                    </div>
+                    <textarea id="batchUrls" rows="6" placeholder="https://www.tiktok.com/...&#10;https://www.instagram.com/reel/...&#10;https://www.youtube.com/shorts/..." class="w-full bg-[#060b14] border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 resize-y"></textarea>
+                    <button onclick="processarLote()" class="w-full mt-3 h-12 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl text-sm transition-colors"><i class="fa-solid fa-gears mr-1"></i>Processar Lote</button>
+                    <div id="batchStatus" class="mt-4 text-sm"></div>
+                </div>
+            </section>
+
+            <!-- FAQ -->
+            <section class="py-12 sm:py-16 border-t section-line">
+                <div class="max-w-3xl mx-auto">
+                    <div class="text-center mb-8">
+                        <p class="text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">DÚVIDAS</p>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold text-white">Perguntas frequentes</h2>
+                    </div>
+
+                    <div class="space-y-3">
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O que o Minhoca de Jardim faz?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Baixa vídeos de plataformas compatíveis e prepara uma nova versão em MP4, com limpeza de metadados, para você levar ao seu editor e adaptar.</div>
+                        </details>
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">Quais plataformas são compatíveis?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">TikTok, Instagram Reels, YouTube Shorts e Pinterest são as plataformas contempladas no fluxo atual. A disponibilidade pode mudar conforme as plataformas alteram seus sistemas.</div>
+                        </details>
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">Como funciona o processamento?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">O arquivo é baixado e processado para gerar uma nova versão em MP4, com remoção de metadados e foco em compatibilidade para edição.</div>
+                        </details>
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O Pix renova automaticamente?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Não. O Pix é um pagamento único para o período contratado.</div>
+                        </details>
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">E o cartão?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">No cartão, a assinatura pode ter renovação automática conforme o plano. O usuário pode cancelar a renovação.</div>
+                        </details>
+                        <details class="faq-item bg-card rounded-xl group">
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O Minhoca garante que meu conteúdo não será identificado pelas plataformas?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Não. O Minhoca prepara o arquivo para reutilização e edição, mas não garante nem promete que plataformas deixarão de identificar ou classificar um conteúdo.</div>
+                        </details>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PAGAMENTO -->
+            <section class="py-10 sm:py-12">
+                <div class="max-w-3xl mx-auto bg-card rounded-2xl p-6 sm:p-7 flex items-center gap-4">
+                    <div class="w-11 h-11 shrink-0 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div>
+                        <h3 class="font-bold text-white">Pagamento protegido pelo Mercado Pago</h3>
+                        <p class="text-sm text-slate-400 mt-1">Seus dados de pagamento são processados em ambiente seguro.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="border-t border-slate-800/70 mt-8">
+            <div class="max-w-6xl mx-auto px-5 sm:px-8 py-8 flex flex-col sm:flex-row justify-between gap-3 text-sm">
+                <div>
+                    <div class="font-extrabold text-white">Minhoca de Jardim</div>
+                    <div class="text-slate-500 mt-1">Baixe. Prepare. Adapte. Publique.</div>
+                </div>
+                <div class="text-slate-600 sm:text-right">© 2026 Minhoca de Jardim</div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- MODAL DE ACESSO -->
+    <div id="modalAcesso" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-40">
+        <div class="bg-card w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button type="button" onclick="fecharAcesso()" class="absolute top-4 right-4 text-slate-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            <div class="w-11 h-11 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 mb-4"><i class="fa-solid fa-user"></i></div>
+            <h2 class="text-xl font-extrabold text-white">Acesso</h2>
+            <p class="text-sm text-slate-400 mt-1 mb-5">Informe o e-mail usado no Minhoca para carregar seu acesso.</p>
+            <div class="relative">
+                <i class="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+                <input id="userEmail" type="email" autocomplete="email" placeholder="Seu e-mail..." class="input-focus w-full h-12 pl-11 pr-4 bg-[#060b14] border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none text-sm">
+            </div>
+            <button onclick="ativarEmail(); fecharAcesso();" class="w-full mt-3 h-12 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-sm">Acessar</button>
         </div>
     </div>
-</div>
 
-<footer class="w-full max-w-4xl text-center py-4 text-xs text-gray-600 border-t border-gray-800/40">
-    © 2026 Minhoca de Jardim — Ferramenta para download e preparação de mídia.
-</footer>
+    <!-- MODAL DE PAGAMENTO -->
+    <div id="modalPagamento" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4 z-50 animate-fade">
+        <div class="bg-card max-w-md w-full p-6 rounded-2xl border border-slate-700 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button onclick="fecharModalPagamento()" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="w-12 h-12 mx-auto rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center mb-4"><i class="fa-solid fa-wallet text-emerald-400"></i></div>
+            <h3 id="modalTitulo" class="text-xl font-bold text-white text-center mb-1">Escolha como pagar</h3>
+            <p id="modalDescricao" class="text-xs text-slate-400 text-center mb-5">Escolha Pix para pagar uma vez ou cartão para ativar a renovação automática.</p>
 
-<script>
+            <div class="bg-[#060b14] border border-slate-800 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-2"><span class="text-xs text-slate-500">Plano</span><strong id="modalPlano" class="text-xs text-white">—</strong></div>
+                <div class="flex justify-between items-center"><span class="text-xs text-slate-500">Valor</span><strong id="modalValor" class="text-sm text-emerald-400">—</strong></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <button id="metodoPixBtn" onclick="trocarMetodoPagamento('pix')" class="py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all"> <i class="fa-solid fa-qrcode mr-1"></i> PIX<span class="block text-[9px] font-medium text-slate-400 mt-0.5">Sem renovação automática</span></button>
+                <button id="metodoCartaoBtn" onclick="trocarMetodoPagamento('cartao')" class="py-3 rounded-xl border border-slate-800 bg-[#060b14] text-slate-400 text-xs font-extrabold transition-all"><i class="fa-solid fa-credit-card mr-1"></i> CARTÃO<span class="block text-[9px] font-medium text-slate-500 mt-0.5">Renovação automática</span></button>
+            </div>
+
+            <div id="conteudoPix">
+                <div class="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-4 mb-3">
+                    <div id="pixQrContainer" class="bg-white rounded-xl p-3 min-h-12 flex items-center justify-center mb-3"><span class="text-xs text-slate-500">Clique em gerar Pix.</span></div>
+                    <input id="pixCopiaCola" type="text" readonly class="w-full bg-[#060b14] border border-slate-800 text-[10px] p-3 rounded-xl text-slate-300 text-center mb-2 focus:outline-none select-all">
+                    <button id="gerarPixButton" onclick="gerarPix()" class="w-full py-3 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-xs hover:brightness-110 transition-all">Gerar Pix</button>
+                    <button id="copiarPixButton" onclick="copiarPix()" disabled class="w-full mt-2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-700 transition-all disabled:opacity-40">Copiar Pix Copia e Cola</button>
+                </div>
+                <div id="pixStatus" class="text-xs text-slate-400"></div>
+                <p class="text-[10px] text-slate-500 mt-3 leading-relaxed">O Pix libera o período contratado após a confirmação. Não há cobrança automática.</p>
+            </div>
+
+            <div id="conteudoCartao" class="hidden">
+                <div class="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 mb-4 text-left">
+                    <div class="flex items-start gap-3"><i class="fa-solid fa-credit-card text-blue-400 mt-0.5"></i><div><strong class="text-xs text-white block">Pagamento recorrente</strong><span class="text-[10px] text-slate-400 leading-relaxed">O Mercado Pago fará a cobrança conforme a frequência do plano. Você pode cancelar a renovação a qualquer momento.</span></div></div>
+                </div>
+                <button id="checkoutButton" onclick="prepararCheckoutCartao()" class="w-full py-3.5 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-xs hover:brightness-110 transition-all shadow-lg">Continuar com cartão</button>
+                <div id="checkoutStatus" class="mt-4 text-xs text-slate-400"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
     const PLANOS = {
         semanal: {
             nome: "Semanal",
@@ -524,13 +474,16 @@ https://www.youtube.com/shorts/..."
             const plano = document.getElementById("assinaturaPlano");
             const status = document.getElementById("assinaturaStatus");
             const cancelar = document.getElementById("cancelarButton");
+            const secaoPlanos = document.getElementById("secaoPlanos");
 
             if (!res.ok || !data.has_paid_plan) {
                 area.classList.add("hidden");
+                secaoPlanos.classList.remove("hidden");
                 return;
             }
 
             area.classList.remove("hidden");
+            secaoPlanos.classList.add("hidden");
 
             const planoInfo = PLANOS[data.plan];
             plano.textContent = planoInfo
@@ -1071,7 +1024,23 @@ https://www.youtube.com/shorts/..."
             baixarVideo();
         }
     });
-</script>
 
+
+        function abrirAcesso() {
+            const modal = document.getElementById("modalAcesso");
+            if (!modal) return;
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            const input = document.getElementById("userEmail");
+            if (input) setTimeout(() => input.focus(), 50);
+        }
+
+        function fecharAcesso() {
+            const modal = document.getElementById("modalAcesso");
+            if (!modal) return;
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
+    </script>
 </body>
 </html>
