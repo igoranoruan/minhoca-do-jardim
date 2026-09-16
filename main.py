@@ -4,6 +4,8 @@ import uuid
 import hmac
 import hashlib
 import subprocess
+import unicodedata
+import zipfile
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlsplit, urlunsplit, parse_qsl, urlencode
 
@@ -43,6 +45,8 @@ FREE_LIMIT = 3
 BATCH_MAX_ITEMS = 20
 MAX_URL_LENGTH = 2048
 MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
+BATCH_MAX_TOTAL_BYTES = 500 * 1024 * 1024
+MAX_FILENAME_LENGTH = 80
 CLEAN_FILE_TTL_SECONDS = 3600
 
 SUPPORTED_HOSTS = {
@@ -90,6 +94,7 @@ class SubscriptionRequest(BaseModel):
 class BatchRequest(BaseModel):
     urls: list[str]
     user_email: str | None = None
+    filename_prefix: str | None = None
 
 
 def get_mp_token() -> str:
@@ -699,15 +704,116 @@ def friendly_download_error(video_url: str, error: Exception) -> str:
     return message or "Não foi possível processar o vídeo."
 
 
-def process_one_video(video_url: str, quota_usage, plan_type: str):
+def sanitize_filename(value: str | None, fallback: str = "video_minhoca") -> str:
+    """Converte o nome informado pelo usuário em um nome de arquivo seguro."""
+
+    text = (value or "").strip()
+    if not text:
+        text = fallback
+
+    text = os.path.splitext(text)[0]
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[^A-Za-z0-9 _-]+", "", text)
+    text = re.sub(r"\s+", "_", text).strip("._-")
+    text = re.sub(r"_+", "_", text)
+
+    if not text:
+        text = fallback
+
+    return text[:MAX_FILENAME_LENGTH].rstrip("._-") or fallback
+
+
+def build_output_filename(temp_id: str, requested_name: str | None = None) -> str:
+    """Mantém o UUID no caminho e usa o nome informado de forma segura."""
+
+    safe_name = sanitize_filename(requested_name)
+    return f"minhoca_{temp_id}_{safe_name}.mp4"
+
+
+def file_path_from_download_url(download_url: str) -> str:
+    filename = os.path.basename(urlparse(download_url).path)
+    if not re.fullmatch(
+        r"minhoca_[0-9a-f-]+(?:_[A-Za-z0-9_-]+)?\.mp4",
+        filename,
+        flags=re.IGNORECASE,
+    ):
+        raise RuntimeError("Arquivo de download inválido.")
+    return os.path.join(DOWNLOAD_DIR, filename)
+
+
+def create_batch_zip(file_paths: list[tuple[str, str]]) -> str | None:
+    """Cria um ZIP com os arquivos processados, sem duplicar nomes."""
+
+    if not file_paths:
+        return None
+
+    total_bytes = 0
+    for path, _ in file_paths:
+        if not os.path.exists(path):
+            continue
+        total_bytes += os.path.getsize(path)
+
+    if total_bytes > BATCH_MAX_TOTAL_BYTES:
+        raise RuntimeError(
+            "O lote ultrapassou o tamanho máximo de 500 MB para o download em bloco."
+        )
+
+    zip_id = str(uuid.uuid4())
+    zip_filename = f"minhoca_lote_{zip_id}.zip"
+    zip_path = os.path.join(DOWNLOAD_DIR, zip_filename)
+    used_names = set()
+
+    try:
+        with zipfile.ZipFile(
+            zip_path,
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+            compresslevel=6,
+        ) as archive:
+            for path, desired_name in file_paths:
+                if not os.path.exists(path):
+                    continue
+
+                base_name = sanitize_filename(desired_name, "video_minhoca")
+                archive_name = f"{base_name}.mp4"
+                counter = 2
+
+                while archive_name.lower() in used_names:
+                    archive_name = f"{base_name}_{counter}.mp4"
+                    counter += 1
+
+                used_names.add(archive_name.lower())
+                archive.write(path, arcname=archive_name)
+
+        if not os.path.exists(zip_path) or os.path.getsize(zip_path) < 100:
+            raise RuntimeError("Não foi possível gerar o arquivo ZIP do lote.")
+
+        return f"/files/{zip_filename}"
+    except Exception:
+        if os.path.exists(zip_path):
+            try:
+                os.remove(zip_path)
+            except OSError:
+                pass
+        raise
+
+
+def process_one_video(
+    video_url: str,
+    quota_usage,
+    plan_type: str,
+    requested_name: str | None = None,
+):
     temp_id = str(uuid.uuid4())
     raw_path = os.path.join(
         DOWNLOAD_DIR,
         f"raw_{temp_id}.mp4",
     )
+    clean_filename = build_output_filename(temp_id, requested_name)
     clean_path = os.path.join(
         DOWNLOAD_DIR,
-        f"minhoca_{temp_id}.mp4",
+        clean_filename,
     )
 
     actual_raw_path = raw_path
@@ -723,7 +829,7 @@ def process_one_video(video_url: str, quota_usage, plan_type: str):
             clean_path,
         )
 
-        return f"/files/minhoca_{temp_id}.mp4"
+        return f"/files/{clean_filename}"
 
     except Exception:
         if os.path.exists(clean_path):
@@ -1260,6 +1366,7 @@ def process_video(
     request: Request,
     video_url: str,
     user_email: str | None = None,
+    filename: str | None = None,
     db: Session = Depends(get_db),
 ):
     cleanup_old_files()
@@ -1299,6 +1406,7 @@ def process_video(
             video_url.strip(),
             quota_usage,
             plan_type,
+            requested_name=filename,
         )
 
         # Só contabiliza depois que o arquivo final foi gerado.
@@ -1308,9 +1416,16 @@ def process_video(
             plan_type,
         )
 
+        display_filename = (
+            f"{sanitize_filename(filename)}.mp4"
+            if filename
+            else "video_minhoca.mp4"
+        )
+
         return {
             "status": "success",
             "download_url": download_url,
+            "filename": display_filename,
             "plan": plan_type,
         }
 
@@ -1364,10 +1479,14 @@ def process_batch(
             detail="O processamento em lote está disponível apenas no VIP Batch.",
         )
 
+    prefix = sanitize_filename(payload.filename_prefix, "video")
     results = []
+    successful_files: list[tuple[str, str]] = []
+    batch_total_bytes = 0
 
-    for raw_url in payload.urls:
+    for index, raw_url in enumerate(payload.urls, start=1):
         url = raw_url.strip()
+        requested_name = f"{prefix}_{index:02d}"
 
         if not is_valid_video_url(url):
             results.append({
@@ -1382,34 +1501,95 @@ def process_batch(
                 url,
                 None,
                 plan_type,
+                requested_name=requested_name,
             )
+            file_path = file_path_from_download_url(download_url)
+            file_size = os.path.getsize(file_path)
+
+            if batch_total_bytes + file_size > BATCH_MAX_TOTAL_BYTES:
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+
+                results.append({
+                    "url": url,
+                    "status": "error",
+                    "detail": "O lote ultrapassaria o limite total de 500 MB.",
+                })
+                break
+
+            batch_total_bytes += file_size
+            successful_files.append((file_path, requested_name))
+
             results.append({
                 "url": url,
                 "status": "success",
                 "download_url": download_url,
+                "filename": f"{requested_name}.mp4",
             })
         except Exception as exc:
             results.append({
                 "url": url,
                 "status": "error",
-                "detail": str(exc),
+                "detail": friendly_download_error(url, exc),
             })
+
+    processed_count = len(results)
+    if processed_count < len(payload.urls):
+        for remaining_index in range(processed_count, len(payload.urls)):
+            results.append({
+                "url": payload.urls[remaining_index].strip(),
+                "status": "error",
+                "detail": "Processamento interrompido após atingir o limite total de 500 MB do lote.",
+            })
+
+    zip_url = None
+    zip_error = None
+
+    if successful_files:
+        try:
+            zip_url = create_batch_zip(successful_files)
+        except Exception as exc:
+            zip_error = str(exc)
 
     return {
         "status": "success",
         "plan": plan_type,
         "total": len(payload.urls),
+        "successful": len(successful_files),
+        "failed": len(payload.urls) - len(successful_files),
         "results": results,
+        "zip_url": zip_url,
+        "zip_error": zip_error,
     }
 
 
 @app.get("/files/{filename}")
 def get_file(filename: str):
-    if not re.fullmatch(
-        r"minhoca_[0-9a-f-]+\.mp4",
+    video_match = re.fullmatch(
+        r"minhoca_[0-9a-f-]+(?:_([A-Za-z0-9_-]+))?\.mp4",
         filename,
         flags=re.IGNORECASE,
-    ):
+    )
+    zip_match = re.fullmatch(
+        r"minhoca_lote_[0-9a-f-]+\.zip",
+        filename,
+        flags=re.IGNORECASE,
+    )
+
+    if video_match:
+        media_type = "video/mp4"
+        requested_name = video_match.group(1)
+        download_filename = (
+            f"{requested_name}.mp4"
+            if requested_name
+            else "video_minhoca.mp4"
+        )
+    elif zip_match:
+        media_type = "application/zip"
+        download_filename = "minhoca_lote.zip"
+    else:
         raise HTTPException(
             status_code=400,
             detail="Nome de arquivo inválido.",
@@ -1428,8 +1608,8 @@ def get_file(filename: str):
 
     return FileResponse(
         file_path,
-        filename=filename,
-        media_type="video/mp4",
+        filename=download_filename,
+        media_type=media_type,
         headers={
             "Cache-Control": "no-store, max-age=0",
             "Pragma": "no-cache",

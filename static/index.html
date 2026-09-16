@@ -85,6 +85,20 @@
                                 Processar e baixar
                             </button>
                         </div>
+
+                        <div class="mt-3 flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <i class="fa-solid fa-file-signature absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-xs pointer-events-none"></i>
+                                <input id="filename" type="text" maxlength="80" autocomplete="off"
+                                    placeholder="Nome do arquivo (opcional)"
+                                    class="input-focus w-full h-11 pl-10 pr-4 bg-[#060b14] border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none text-xs transition-all">
+                            </div>
+                            <div class="flex items-center px-3 text-[10px] text-slate-500">
+                                <i class="fa-solid fa-circle-info mr-1.5"></i>
+                                Se deixar vazio, usamos um nome automático.
+                            </div>
+                        </div>
+
                         <div id="status" class="mt-3 text-center text-xs sm:text-sm"></div>
                     </div>
 
@@ -203,7 +217,18 @@
                         </div>
                     </div>
                     <textarea id="batchUrls" rows="6" placeholder="https://www.tiktok.com/...&#10;https://www.instagram.com/reel/...&#10;https://www.youtube.com/shorts/..." class="w-full bg-[#060b14] border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 resize-y"></textarea>
-                    <button onclick="processarLote()" class="w-full mt-3 h-12 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl text-sm transition-colors"><i class="fa-solid fa-gears mr-1"></i>Processar Lote</button>
+
+                    <div class="mt-3">
+                        <div class="relative">
+                            <i class="fa-solid fa-file-signature absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-xs pointer-events-none"></i>
+                            <input id="batchPrefix" type="text" maxlength="60" autocomplete="off"
+                                placeholder="Prefixo dos arquivos (opcional) — ex.: meu_conteudo"
+                                class="w-full h-11 pl-10 pr-4 bg-[#060b14] border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs">
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-2">Os arquivos serão numerados automaticamente: prefixo_01.mp4, prefixo_02.mp4...</p>
+                    </div>
+
+                    <button id="batchButton" onclick="processarLote()" class="w-full mt-3 h-12 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl text-sm transition-colors"><i class="fa-solid fa-gears mr-1"></i>Processar e preparar lote</button>
                     <div id="batchStatus" class="mt-4 text-sm"></div>
                 </div>
             </section>
@@ -851,6 +876,11 @@
                 endpoint += `&user_email=${encodeURIComponent(userEmail)}`;
             }
 
+            const filename = document.getElementById("filename").value.trim();
+            if (filename) {
+                endpoint += `&filename=${encodeURIComponent(filename)}`;
+            }
+
             const response = await fetch(endpoint, {
                 method: "POST"
             });
@@ -878,7 +908,7 @@
 
             const link = document.createElement("a");
             link.href = data.download_url;
-            link.download = "video_minhoca.mp4";
+            link.download = data.filename || "video_minhoca.mp4";
             link.target = "_blank";
             link.rel = "noopener";
 
@@ -926,6 +956,8 @@
     async function processarLote() {
         const email = document.getElementById("userEmail").value.trim();
         const textarea = document.getElementById("batchUrls");
+        const prefixInput = document.getElementById("batchPrefix");
+        const button = document.getElementById("batchButton");
         const status = document.getElementById("batchStatus");
 
         if (!emailValido(email)) {
@@ -945,8 +977,18 @@
             return;
         }
 
-        status.textContent = "Processando lote...";
-        status.className = "mt-4 text-xs text-amber-400";
+        if (urls.length > 20) {
+            status.textContent = "O lote aceita no máximo 20 URLs.";
+            status.className = "mt-4 text-xs text-red-400";
+            return;
+        }
+
+        const prefix = prefixInput.value.trim();
+
+        button.disabled = true;
+        button.classList.add("opacity-60", "cursor-not-allowed");
+        button.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i>Processando lote...';
+        status.innerHTML = '<div class="p-4 bg-amber-950/30 border border-amber-800/50 text-amber-400 rounded-xl">Processando os vídeos um por um. Isso pode levar alguns minutos.</div>';
 
         try {
             const response = await fetch("/api/download-batch", {
@@ -956,7 +998,8 @@
                 },
                 body: JSON.stringify({
                     urls,
-                    user_email: email
+                    user_email: email,
+                    filename_prefix: prefix || null
                 })
             });
 
@@ -970,34 +1013,66 @@
 
             status.innerHTML = "";
 
+            const header = document.createElement("div");
+            header.className = "p-4 bg-emerald-950/30 border border-emerald-800/50 rounded-xl mb-3";
+
+            const summaryText = document.createElement("div");
+            summaryText.className = "text-emerald-400 font-bold text-sm";
+            summaryText.textContent = `${data.successful} de ${data.total} vídeos preparados.`;
+            header.appendChild(summaryText);
+
+            if (data.zip_url) {
+                const zipLink = document.createElement("a");
+                zipLink.href = data.zip_url;
+                zipLink.download = "minhoca_lote.zip";
+                zipLink.className = "inline-flex items-center justify-center gap-2 mt-3 w-full py-3 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-xs sm:text-sm";
+                zipLink.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Baixar tudo em ZIP';
+                header.appendChild(zipLink);
+            } else if (data.zip_error) {
+                const zipError = document.createElement("div");
+                zipError.className = "text-amber-400 text-xs mt-2";
+                zipError.textContent = `ZIP não gerado: ${data.zip_error}`;
+                header.appendChild(zipError);
+            }
+
+            status.appendChild(header);
+
             const summary = document.createElement("div");
             summary.className = "space-y-2";
 
             data.results.forEach((item, index) => {
                 const row = document.createElement("div");
-                row.className =
-                    "p-3 rounded-xl border border-gray-800 bg-gray-950/60 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between";
+                row.className = "p-3 rounded-xl border border-gray-800 bg-gray-950/60 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between";
 
-                const text = document.createElement("span");
-                text.className = "text-gray-300 break-all";
-                text.textContent =
-                    `${index + 1}. ${item.url}`;
+                const info = document.createElement("div");
+                info.className = "min-w-0";
 
-                row.appendChild(text);
+                const text = document.createElement("div");
+                text.className = "text-gray-300 break-all text-xs";
+                text.textContent = `${index + 1}. ${item.filename || item.url}`;
+                info.appendChild(text);
+
+                if (item.status === "success") {
+                    const source = document.createElement("div");
+                    source.className = "text-[10px] text-gray-600 break-all mt-1";
+                    source.textContent = item.url;
+                    info.appendChild(source);
+                }
+
+                row.appendChild(info);
 
                 if (item.status === "success") {
                     const link = document.createElement("a");
                     link.href = item.download_url;
                     link.target = "_blank";
                     link.rel = "noopener";
-                    link.download = "video_minhoca.mp4";
-                    link.className =
-                        "text-emerald-400 font-bold whitespace-nowrap";
+                    link.download = item.filename || "video_minhoca.mp4";
+                    link.className = "text-emerald-400 font-bold whitespace-nowrap text-xs";
                     link.textContent = "Baixar";
                     row.appendChild(link);
                 } else {
                     const error = document.createElement("span");
-                    error.className = "text-red-400";
+                    error.className = "text-red-400 text-xs";
                     error.textContent = "Erro";
                     row.appendChild(error);
                 }
@@ -1007,9 +1082,12 @@
 
             status.appendChild(summary);
         } catch (err) {
-            status.textContent =
-                err.message || "Erro ao processar o lote.";
+            status.textContent = err.message || "Erro ao processar o lote.";
             status.className = "mt-4 text-xs text-red-400";
+        } finally {
+            button.disabled = false;
+            button.classList.remove("opacity-60", "cursor-not-allowed");
+            button.innerHTML = '<i class="fa-solid fa-gears mr-1"></i>Processar e preparar lote';
         }
     }
 
