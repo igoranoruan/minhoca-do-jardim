@@ -13,7 +13,10 @@ class UserUsage(Base):
     # Controle do plano Free por IP.
     ip_address = Column(String, unique=True, index=True)
 
-    downloads_today = Column(Integer, default=0)
+    downloads_today = Column(Integer, default=0, nullable=False)
+
+    # Reservas em processamento. Evita que requisições simultâneas ultrapassem a cota.
+    reserved_today = Column(Integer, default=0, nullable=False)
 
     last_download_date = Column(String)
 
@@ -32,6 +35,9 @@ class PlanUsage(Base):
     # Quantidade de downloads/processamentos realizados
     # pelo usuário naquele dia.
     downloads_today = Column(Integer, default=0, nullable=False)
+
+    # Reservas em processamento antes da confirmação do arquivo final.
+    reserved_today = Column(Integer, default=0, nullable=False)
 
 
 class User(Base):

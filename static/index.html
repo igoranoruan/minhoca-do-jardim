@@ -41,7 +41,7 @@
         <header class="w-full border-b border-slate-800/70 bg-[#050810]/95">
             <div class="max-w-6xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between">
                 <a href="#topo" class="flex items-center gap-3 min-w-0">
-                    <img src="/static/favicon.png" alt="" class="w-9 h-9 object-contain" aria-hidden="true">
+                    <img src="/static/favicon.png" alt="" class="w-9 h-9 object-contain brightness-0 invert" aria-hidden="true">
                     <span class="font-extrabold tracking-tight text-white text-base sm:text-lg whitespace-nowrap">MINHOCA DE JARDIM</span>
                 </a>
                 <button type="button" onclick="abrirAcesso()" class="text-sm font-semibold text-slate-300 hover:text-white transition-colors px-2 py-1">
@@ -209,24 +209,24 @@
             <!-- BATCH -->
             <section id="secaoBatch" class="hidden py-8">
                 <div class="bg-card rounded-2xl p-6 border-amber-500/30">
-                    <div class="flex items-start gap-3 mb-4">
+                    <div class="flex items-start gap-3 mb-5">
                         <div class="w-10 h-10 rounded-xl bg-amber-950/40 border border-amber-700/40 flex items-center justify-center text-amber-400"><i class="fa-solid fa-layer-group"></i></div>
-                        <div>
-                            <h2 class="text-base font-extrabold text-white">VIP Batch — processe vários links</h2>
-                            <p class="text-sm text-slate-400 mt-1">Cole até 20 URLs, uma por linha. Disponível somente no VIP Batch.</p>
+                        <div class="min-w-0">
+                            <h2 class="text-base font-extrabold text-white">VIP Batch — processe vários vídeos</h2>
+                            <p class="text-sm text-slate-400 mt-1">Adicione até 10 vídeos. Você pode dar um nome diferente para cada arquivo.</p>
                         </div>
                     </div>
-                    <textarea id="batchUrls" rows="6" placeholder="https://www.tiktok.com/...&#10;https://www.instagram.com/reel/...&#10;https://www.youtube.com/shorts/..." class="w-full bg-[#060b14] border border-slate-800 rounded-xl p-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 resize-y"></textarea>
 
-                    <div class="mt-3">
-                        <div class="relative">
-                            <i class="fa-solid fa-file-signature absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 text-xs pointer-events-none"></i>
-                            <input id="batchPrefix" type="text" maxlength="60" autocomplete="off"
-                                placeholder="Prefixo dos arquivos (opcional) — ex.: meu_conteudo"
-                                class="w-full h-11 pl-10 pr-4 bg-[#060b14] border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs">
-                        </div>
-                        <p class="text-[10px] text-slate-500 mt-2">Os arquivos serão numerados automaticamente: prefixo_01.mp4, prefixo_02.mp4...</p>
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <span id="batchCount" class="text-[11px] font-bold uppercase tracking-wider text-slate-500">1 de 10 vídeos</span>
+                        <span class="text-[10px] text-slate-600">VIP Batch</span>
                     </div>
+
+                    <div id="batchItems" class="space-y-3"></div>
+
+                    <button id="batchAddButton" type="button" onclick="adicionarCampoLote()" class="w-full mt-3 h-11 rounded-xl border border-slate-700 bg-[#060b14] text-slate-300 hover:border-amber-500/60 hover:text-amber-400 font-bold text-xs transition-colors">
+                        <i class="fa-solid fa-plus mr-1"></i> Adicionar vídeo
+                    </button>
 
                     <button id="batchButton" onclick="processarLote()" class="w-full mt-3 h-12 bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold rounded-xl text-sm transition-colors"><i class="fa-solid fa-gears mr-1"></i>Processar e preparar lote</button>
                     <div id="batchStatus" class="mt-4 text-sm"></div>
@@ -375,6 +375,8 @@
     document.addEventListener("DOMContentLoaded", () => {
         const emailSalvo = localStorage.getItem("minhoca_user_email");
 
+        inicializarBatch();
+
         if (emailSalvo) {
             document.getElementById("userEmail").value = emailSalvo;
             validarEmailNoServidor(emailSalvo, false);
@@ -441,7 +443,7 @@
             }
 
             if (data.plan === "admin" || data.is_vip) {
-                const limite = data.daily_limit === null
+                const limite = data.daily_limit == null
                     ? "ilimitado"
                     : `${data.downloads_today}/${data.daily_limit}`;
 
@@ -478,6 +480,7 @@
             }
 
             await carregarAssinatura(email);
+            return data;
         } catch (err) {
             console.error(err);
 
@@ -676,8 +679,10 @@
                 if (res.ok && data.approved) {
                     clearInterval(timer);
                     document.getElementById("pixStatus").innerHTML =
-                        '<span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Pagamento confirmado! Seu acesso foi liberado.</span>';
+                        '<div class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Pagamento confirmado! Seu acesso foi liberado.</div>' +
+                        '<button type="button" onclick="fecharModalPagamento(); document.getElementById(\'url\').focus();" class="mt-3 w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs">Começar a processar vídeos</button>';
                     await validarEmailNoServidor(email, false);
+                    setTimeout(() => fecharModalPagamento(), 800);
                     return;
                 }
 
@@ -743,8 +748,8 @@
             window.open(data.checkout_url, "_blank", "noopener,noreferrer");
             button.disabled = false;
             button.textContent = "Abrir checkout novamente";
-            document.getElementById("checkoutStatus").textContent =
-                "Checkout aberto. Após pagar, atualize seu e-mail para confirmar o acesso.";
+            document.getElementById("checkoutStatus").innerHTML =
+                '<span class="text-slate-400">Checkout aberto. Depois da aprovação, o acesso será reconhecido automaticamente nesta página.</span>';
             iniciarMonitoramento();
         } catch (err) {
             button.disabled = false;
@@ -760,20 +765,31 @@
         monitoramentoAtivo = true;
 
         let tentativas = 0;
-        const maxTentativas = 24;
+        const maxTentativas = 36;
 
         const timer = setInterval(async () => {
             tentativas++;
-
             const email = document.getElementById("userEmail").value.trim();
 
             if (emailValido(email)) {
-                await validarEmailNoServidor(email, false);
+                const data = await validarEmailNoServidor(email, false);
+
+                if (data && data.plan && data.plan !== "free" && data.plan !== "admin") {
+                    clearInterval(timer);
+                    monitoramentoAtivo = false;
+                    document.getElementById("checkoutStatus").innerHTML =
+                        '<div class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1"></i>Pagamento confirmado! Seu plano está ativo.</div>' +
+                        '<button type="button" onclick="fecharModalPagamento(); document.getElementById(\'url\').focus();" class="mt-3 w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs">Começar a processar vídeos</button>';
+                    setTimeout(() => fecharModalPagamento(), 1200);
+                    return;
+                }
             }
 
             if (tentativas >= maxTentativas) {
                 clearInterval(timer);
                 monitoramentoAtivo = false;
+                document.getElementById("checkoutStatus").textContent =
+                    "Ainda aguardando a confirmação do pagamento. Se a compra já foi aprovada, o acesso aparecerá automaticamente assim que o Mercado Pago confirmar a transação.";
             }
         }, 5000);
     }
@@ -935,6 +951,13 @@
             wrapper.appendChild(message);
             wrapper.appendChild(downloadButton);
 
+            if (typeof data.downloads_today === "number" && data.daily_limit != null) {
+                const textoPlano = data.plan === "free"
+                    ? `Gratuito: ${data.downloads_today}/${data.daily_limit} hoje`
+                    : `${data.plan_name || data.plan}: ${data.downloads_today}/${data.daily_limit} hoje`;
+                setStatusConta(textoPlano, data.plan === "vip" ? "vip" : "normal");
+            }
+
             const status = document.getElementById("status");
             status.innerHTML = "";
             status.appendChild(wrapper);
@@ -953,10 +976,93 @@
         }
     }
 
+    function atualizarContagemLote() {
+        const items = document.querySelectorAll(".batch-item");
+        const count = items.length;
+        document.getElementById("batchCount").textContent = `${count} de 10 vídeos`;
+        const addButton = document.getElementById("batchAddButton");
+        addButton.disabled = count >= 10;
+        addButton.classList.toggle("opacity-40", count >= 10);
+        addButton.classList.toggle("cursor-not-allowed", count >= 10);
+        addButton.innerHTML = count >= 10
+            ? '<i class="fa-solid fa-check mr-1"></i> Limite de 10 vídeos atingido'
+            : '<i class="fa-solid fa-plus mr-1"></i> Adicionar vídeo';
+    }
+
+    function criarCampoLote(index) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "batch-item bg-[#060b14] border border-slate-800 rounded-xl p-3";
+
+        const top = document.createElement("div");
+        top.className = "flex items-center justify-between gap-3 mb-2";
+
+        const label = document.createElement("div");
+        label.className = "text-[11px] font-extrabold uppercase tracking-wider text-slate-400";
+        label.textContent = `VÍDEO ${String(index).padStart(2, "0")}`;
+        top.appendChild(label);
+
+        if (index > 1) {
+            const remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "text-slate-600 hover:text-red-400 text-xs px-2 py-1";
+            remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
+            remove.title = "Remover vídeo";
+            remove.onclick = () => {
+                wrapper.remove();
+                renumerarCamposLote();
+            };
+            top.appendChild(remove);
+        }
+
+        wrapper.appendChild(top);
+
+        const url = document.createElement("input");
+        url.type = "url";
+        url.className = "batch-url w-full h-11 px-4 bg-[#050810] border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs";
+        url.placeholder = "Cole o link do vídeo…";
+        url.autocomplete = "off";
+        wrapper.appendChild(url);
+
+        const name = document.createElement("input");
+        name.type = "text";
+        name.maxLength = 80;
+        name.className = "batch-name w-full h-10 mt-2 px-4 bg-[#050810] border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 text-xs";
+        name.placeholder = "Nome do arquivo (opcional) — ex.: video_oferta";
+        name.autocomplete = "off";
+        wrapper.appendChild(name);
+
+        return wrapper;
+    }
+
+    function renumerarCamposLote() {
+        document.querySelectorAll(".batch-item").forEach((item, index) => {
+            const label = item.querySelector(".text-\[11px\]");
+            if (label) label.textContent = `VÍDEO ${String(index + 1).padStart(2, "0")}`;
+            const remove = item.querySelector("button[title=\"Remover vídeo\"]");
+            if (remove) remove.classList.toggle("hidden", index === 0);
+        });
+        atualizarContagemLote();
+    }
+
+    function adicionarCampoLote() {
+        const container = document.getElementById("batchItems");
+        const count = container.querySelectorAll(".batch-item").length;
+        if (count >= 10) return;
+        container.appendChild(criarCampoLote(count + 1));
+        atualizarContagemLote();
+        container.lastElementChild.querySelector(".batch-url").focus();
+    }
+
+    function inicializarBatch() {
+        const container = document.getElementById("batchItems");
+        if (!container || container.children.length) return;
+        container.appendChild(criarCampoLote(1));
+        atualizarContagemLote();
+    }
+
     async function processarLote() {
         const email = document.getElementById("userEmail").value.trim();
-        const textarea = document.getElementById("batchUrls");
-        const prefixInput = document.getElementById("batchPrefix");
+        const items = Array.from(document.querySelectorAll(".batch-item"));
         const button = document.getElementById("batchButton");
         const status = document.getElementById("batchStatus");
 
@@ -966,49 +1072,43 @@
             return;
         }
 
-        const urls = textarea.value
-            .split(/\r?\n/)
-            .map(item => item.trim())
-            .filter(Boolean);
+        const entries = items.map(item => ({
+            url: item.querySelector(".batch-url").value.trim(),
+            name: item.querySelector(".batch-name").value.trim() || null
+        })).filter(item => item.url);
 
-        if (!urls.length) {
-            status.textContent = "Cole pelo menos uma URL.";
+        if (!entries.length) {
+            status.textContent = "Adicione pelo menos um link de vídeo.";
             status.className = "mt-4 text-xs text-red-400";
             return;
         }
 
-        if (urls.length > 20) {
-            status.textContent = "O lote aceita no máximo 20 URLs.";
+        if (entries.length > 10) {
+            status.textContent = "O lote aceita no máximo 10 vídeos.";
             status.className = "mt-4 text-xs text-red-400";
             return;
         }
-
-        const prefix = prefixInput.value.trim();
 
         button.disabled = true;
         button.classList.add("opacity-60", "cursor-not-allowed");
-        button.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i>Processando lote...';
-        status.innerHTML = '<div class="p-4 bg-amber-950/30 border border-amber-800/50 text-amber-400 rounded-xl">Processando os vídeos um por um. Isso pode levar alguns minutos.</div>';
+        button.innerHTML = '<span class="mr-1">🪱</span> Processando lote...';
+        status.innerHTML = '<div class="p-4 bg-amber-950/30 border border-amber-800/50 text-amber-400 rounded-xl">A Minhoca está preparando os vídeos um por um. Isso pode levar alguns minutos.</div>';
 
         try {
             const response = await fetch("/api/download-batch", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    urls,
-                    user_email: email,
-                    filename_prefix: prefix || null
+                    urls: entries.map(item => item.url),
+                    names: entries.map(item => item.name),
+                    user_email: email
                 })
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(
-                    data.detail || "Não foi possível processar o lote."
-                );
+                throw new Error(data.detail || "Não foi possível processar o lote.");
             }
 
             status.innerHTML = "";
@@ -1088,8 +1188,10 @@
             button.disabled = false;
             button.classList.remove("opacity-60", "cursor-not-allowed");
             button.innerHTML = '<i class="fa-solid fa-gears mr-1"></i>Processar e preparar lote';
+            atualizarContagemLote();
         }
     }
+
 
     function escapeHtml(value) {
         const div = document.createElement("div");

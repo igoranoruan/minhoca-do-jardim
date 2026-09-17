@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -42,7 +43,7 @@ ADMIN_EMAILS = {
 }
 
 FREE_LIMIT = 3
-BATCH_MAX_ITEMS = 20
+BATCH_MAX_ITEMS = 10
 MAX_URL_LENGTH = 2048
 MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
 BATCH_MAX_TOTAL_BYTES = 500 * 1024 * 1024
@@ -93,6 +94,7 @@ class SubscriptionRequest(BaseModel):
 
 class BatchRequest(BaseModel):
     urls: list[str]
+    names: list[str | None] | None = None
     user_email: str | None = None
     filename_prefix: str | None = None
 
@@ -454,6 +456,7 @@ def quota_for_plan(plan_type: str):
 
 
 def get_free_usage(db: Session, client_ip: str, today_str: str):
+    """Obtém o contador Free do IP e prepara o dia atual."""
     usage = (
         db.query(models.UserUsage)
         .filter(models.UserUsage.ip_address == client_ip)
@@ -464,12 +467,14 @@ def get_free_usage(db: Session, client_ip: str, today_str: str):
         usage = models.UserUsage(
             ip_address=client_ip,
             downloads_today=0,
+            reserved_today=0,
             last_download_date=today_str,
         )
         db.add(usage)
 
         try:
             db.commit()
+            db.refresh(usage)
         except IntegrityError:
             db.rollback()
             usage = (
@@ -480,8 +485,10 @@ def get_free_usage(db: Session, client_ip: str, today_str: str):
 
     if usage.last_download_date != today_str:
         usage.downloads_today = 0
+        usage.reserved_today = 0
         usage.last_download_date = today_str
         db.commit()
+        db.refresh(usage)
 
     return usage
 
@@ -501,6 +508,7 @@ def get_plan_usage(db: Session, user_id: int, today_str: str):
             user_id=user_id,
             usage_date=today_str,
             downloads_today=0,
+            reserved_today=0,
         )
         db.add(usage)
 
@@ -521,31 +529,59 @@ def get_plan_usage(db: Session, user_id: int, today_str: str):
     return usage
 
 
-def check_quota(
+def _reserve_usage_row(
+    db: Session,
+    usage,
+    limit: int,
+    reserved_column,
+    count_column,
+):
+    """Reserva uma unidade de cota de forma atômica antes do processamento."""
+    result = db.execute(
+        update(usage.__class__)
+        .where(usage.__class__.id == usage.id)
+        .where((count_column + reserved_column) < limit)
+        .values(reserved_today=reserved_column + 1)
+    )
+    db.commit()
+
+    if result.rowcount != 1:
+        db.refresh(usage)
+        raise HTTPException(
+            status_code=429,
+            detail=f"Limite diário atingido ({limit}/{limit}).",
+        )
+
+    db.refresh(usage)
+    return usage
+
+
+def reserve_quota(
     db: Session,
     plan_type: str,
     client_ip: str,
     user,
     today_str: str,
 ):
-    """
-    Apenas verifica/reserva a linha de controle da cota.
-
-    O consumo da cota acontece somente depois que o vídeo
-    foi realmente processado e o arquivo final foi gerado.
-    """
-
+    """Reserva uma unidade somente quando ainda existe capacidade real."""
     if plan_type == "vip":
         return None
 
     if plan_type == "free":
         usage = get_free_usage(db, client_ip, today_str)
-        if usage.downloads_today >= FREE_LIMIT:
+        try:
+            return _reserve_usage_row(
+                db,
+                usage,
+                FREE_LIMIT,
+                models.UserUsage.reserved_today,
+                models.UserUsage.downloads_today,
+            )
+        except HTTPException:
             raise HTTPException(
                 status_code=429,
                 detail="Limite diário do plano Free atingido (3/3).",
             )
-        return usage
 
     if not user:
         raise HTTPException(
@@ -556,7 +592,18 @@ def check_quota(
     usage = get_plan_usage(db, user.id, today_str)
     limit = PLAN_CONFIG[plan_type]["limit"]
 
-    if limit is not None and usage.downloads_today >= limit:
+    if limit is None:
+        return usage
+
+    try:
+        return _reserve_usage_row(
+            db,
+            usage,
+            limit,
+            models.PlanUsage.reserved_today,
+            models.PlanUsage.downloads_today,
+        )
+    except HTTPException:
         raise HTTPException(
             status_code=429,
             detail=(
@@ -565,26 +612,46 @@ def check_quota(
             ),
         )
 
-    return usage
 
-
-def record_successful_usage(
-    db: Session,
-    usage,
-    plan_type: str,
-):
-    """
-    Conta o processamento somente depois que o arquivo final
-    foi gerado com sucesso. O clique no botão de download do
-    navegador não interfere na contagem.
-    """
-
+def release_reserved_usage(db: Session, usage, plan_type: str):
+    """Libera uma reserva quando o processamento falha."""
     if usage is None or plan_type == "vip":
         return
 
-    usage.downloads_today += 1
+    model = models.UserUsage if plan_type == "free" else models.PlanUsage
+    result = db.execute(
+        update(model)
+        .where(model.id == usage.id)
+        .where(model.reserved_today > 0)
+        .values(reserved_today=model.reserved_today - 1)
+    )
+    db.commit()
+    if result.rowcount:
+        db.refresh(usage)
+
+
+def record_successful_usage(db: Session, usage, plan_type: str):
+    """Converte a reserva em consumo confirmado após gerar o arquivo."""
+    if usage is None or plan_type == "vip":
+        return None
+
+    model = models.UserUsage if plan_type == "free" else models.PlanUsage
+    result = db.execute(
+        update(model)
+        .where(model.id == usage.id)
+        .where(model.reserved_today > 0)
+        .values(
+            downloads_today=model.downloads_today + 1,
+            reserved_today=model.reserved_today - 1,
+        )
+    )
     db.commit()
 
+    if result.rowcount != 1:
+        raise RuntimeError("Não foi possível confirmar o consumo da cota.")
+
+    db.refresh(usage)
+    return usage.downloads_today
 
 def resolve_short_url(url: str) -> str:
     try:
@@ -633,7 +700,13 @@ def download_video_source(video_url: str, raw_path: str):
             "fragment_retries": 2,
             "socket_timeout": 30,
             "concurrent_fragment_downloads": 2,
-            "js_runtimes": {"deno": {}},
+            "js_runtimes": {"deno": {"path": "/usr/local/bin/deno"}},
+            "remote_components": {"ejs:npm"},
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web", "android"],
+                }
+            },
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -1393,7 +1466,7 @@ def process_video(
     else:
         plan_type = current_plan_for_user(user, now)
 
-    quota_usage = check_quota(
+    quota_usage = reserve_quota(
         db=db,
         plan_type=plan_type,
         client_ip=client_ip,
@@ -1410,7 +1483,7 @@ def process_video(
         )
 
         # Só contabiliza depois que o arquivo final foi gerado.
-        record_successful_usage(
+        downloads_today = record_successful_usage(
             db,
             quota_usage,
             plan_type,
@@ -1427,12 +1500,18 @@ def process_video(
             "download_url": download_url,
             "filename": display_filename,
             "plan": plan_type,
+            "downloads_today": downloads_today,
+            "daily_limit": quota_for_plan(plan_type),
         }
 
     except HTTPException:
+        if quota_usage is not None:
+            release_reserved_usage(db, quota_usage, plan_type)
         raise
 
     except Exception as exc:
+        if quota_usage is not None:
+            release_reserved_usage(db, quota_usage, plan_type)
         raise HTTPException(
             status_code=502,
             detail=friendly_download_error(video_url.strip(), exc),
@@ -1456,7 +1535,13 @@ def process_batch(
     if len(payload.urls) > BATCH_MAX_ITEMS:
         raise HTTPException(
             status_code=400,
-            detail=f"O lote aceita no máximo {BATCH_MAX_ITEMS} URLs.",
+            detail=f"O lote aceita no máximo {BATCH_MAX_ITEMS} vídeos.",
+        )
+
+    if payload.names is not None and len(payload.names) > BATCH_MAX_ITEMS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"O lote aceita no máximo {BATCH_MAX_ITEMS} nomes.",
         )
 
     email = (
@@ -1479,14 +1564,22 @@ def process_batch(
             detail="O processamento em lote está disponível apenas no VIP Batch.",
         )
 
-    prefix = sanitize_filename(payload.filename_prefix, "video")
     results = []
     successful_files: list[tuple[str, str]] = []
     batch_total_bytes = 0
+    names = payload.names or []
 
     for index, raw_url in enumerate(payload.urls, start=1):
         url = raw_url.strip()
-        requested_name = f"{prefix}_{index:02d}"
+        provided_name = names[index - 1] if index - 1 < len(names) else None
+        requested_name = sanitize_filename(
+            provided_name or (
+                f"{sanitize_filename(payload.filename_prefix, 'video')}_{index:02d}"
+                if payload.filename_prefix
+                else f"video_{index:02d}"
+            ),
+            f"video_{index:02d}",
+        )
 
         if not is_valid_video_url(url):
             results.append({
@@ -2243,7 +2336,11 @@ def check_email_status(
             "email": clean_email,
             "is_vip": True,
             "plan": "admin",
-            "limit": None,
+            "plan_name": "VIP Batch",
+            "downloads_today": None,
+            "daily_limit": None,
+            "expires_at": None,
+            "subscription_status": "active",
         }
 
     user = get_user(db, clean_email)

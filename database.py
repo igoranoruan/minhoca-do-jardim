@@ -97,6 +97,16 @@ def init_db():
         return
 
     with engine.begin() as connection:
+        # USER USAGE
+        _add_column_if_missing(
+            connection, "user_usage", "reserved_today", "INTEGER DEFAULT 0"
+        )
+
+        # PLAN USAGE
+        _add_column_if_missing(
+            connection, "plan_usage", "reserved_today", "INTEGER DEFAULT 0"
+        )
+
         # USERS
         _add_column_if_missing(
             connection, "users", "vip_until", "DATETIME"
