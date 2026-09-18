@@ -51,6 +51,13 @@ BATCH_MAX_TOTAL_BYTES = 500 * 1024 * 1024
 MAX_FILENAME_LENGTH = 80
 CLEAN_FILE_TTL_SECONDS = 3600
 
+# Servidor local do bgutil-ytdlp-pot-provider usado pelo yt-dlp no YouTube.
+# O serviço é iniciado pelo start.sh no container de produção.
+BGUTIL_POT_BASE_URL = os.getenv(
+    "BGUTIL_POT_BASE_URL",
+    "http://127.0.0.1:4416",
+).strip().rstrip("/")
+
 SUPPORTED_HOSTS = {
     "tiktok.com",
     "instagram.com",
@@ -921,10 +928,13 @@ def download_video_source(video_url: str, raw_path: str):
         ),
     }
 
-    # YouTube recebe duas tentativas de cliente no yt-dlp.
+    # YouTube recebe primeiro o cliente mweb, que é o cliente recomendado
+    # atualmente quando um PO Token Provider está configurado. O provider
+    # bgutil é instalado no container e atende localmente em 127.0.0.1:4416.
+    # web_embedded permanece como fallback para vídeos que aceitam esse cliente.
     ytdlp_clients = [None]
     if is_youtube:
-        ytdlp_clients.append(["web_embedded"])
+        ytdlp_clients = [["mweb"], ["web_embedded"]]
 
     for source_type, _ in source_attempts:
         if source_type == "cobalt":
@@ -954,6 +964,15 @@ def download_video_source(video_url: str, raw_path: str):
                             "player_client": player_clients,
                         }
                     }
+
+                    # O plugin bgutil-ytdlp-pot-provider usa o servidor HTTP
+                    # local para gerar automaticamente o PO Token necessário
+                    # pelo cliente mweb. O endereço permanece em loopback e
+                    # não é exposto publicamente pelo servidor web.
+                    if is_youtube and player_clients == ["mweb"]:
+                        ydl_opts["extractor_args"]["youtubepot-bgutilhttp"] = {
+                            "base_url": [BGUTIL_POT_BASE_URL],
+                        }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([clean_url])

@@ -11,6 +11,7 @@ RUN apt-get update \
         curl \
         ffmpeg \
         unzip \
+        git \
     && rm -rf /var/lib/apt/lists/* \
     && curl -fsSL https://deno.land/install.sh | sh \
     && deno --version
@@ -18,11 +19,24 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN git clone \
+    --depth 1 \
+    --branch 2.0.0 \
+    https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git \
+    /opt/bgutil-ytdlp-pot-provider
+
+RUN cd /opt/bgutil-ytdlp-pot-provider/server \
+    && deno install --allow-scripts=npm:canvas --frozen
+
 COPY . .
+
 RUN mkdir -p downloads
+
+RUN chmod +x /app/start.sh
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/start.sh"]
