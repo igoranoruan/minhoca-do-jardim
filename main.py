@@ -3,6 +3,7 @@ import re
 import uuid
 import hmac
 import hashlib
+import json
 import subprocess
 import unicodedata
 import zipfile
@@ -202,9 +203,64 @@ def is_safe_remote_download_url(value: str) -> bool:
     return True
 
 
+def validate_video_file(file_path: str):
+    """Valida o MP4 final como vídeo real antes de liberar o arquivo."""
+    if not os.path.exists(file_path) or os.path.getsize(file_path) < 1024:
+        raise RuntimeError("O arquivo processado ficou inválido ou vazio.")
+
+    command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-print_format",
+        "json",
+        "-show_streams",
+        "-show_format",
+        file_path,
+    ]
+
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=60,
+        )
+        data = json.loads(result.stdout or "{}")
+    except (subprocess.SubprocessError, json.JSONDecodeError) as exc:
+        raise RuntimeError("O arquivo final não pôde ser validado como vídeo.") from exc
+
+    streams = data.get("streams") or []
+    video_streams = [stream for stream in streams if stream.get("codec_type") == "video"]
+
+    if not video_streams:
+        raise RuntimeError("O arquivo final não contém uma faixa de vídeo válida.")
+
+    video = video_streams[0]
+    try:
+        width = int(video.get("width") or 0)
+        height = int(video.get("height") or 0)
+    except (TypeError, ValueError):
+        width = height = 0
+
+    if width < 2 or height < 2:
+        raise RuntimeError("O arquivo final não contém uma imagem de vídeo válida.")
+
+    duration_value = video.get("duration") or (data.get("format") or {}).get("duration")
+    try:
+        duration = float(duration_value) if duration_value is not None else 0.0
+    except (TypeError, ValueError):
+        duration = 0.0
+
+    if duration <= 0:
+        raise RuntimeError("O arquivo final não contém uma duração de vídeo válida.")
+
+
 def clean_metadata(input_path: str, output_path: str):
     """
-    Gera uma nova versão do arquivo e remove os metadados do contêiner.
+    Gera uma nova versão MP4 compatível, remove metadados e valida o vídeo.
     Não é uma garantia de evasão de sistemas de detecção das plataformas.
     """
     command = [
@@ -212,25 +268,47 @@ def clean_metadata(input_path: str, output_path: str):
         "-y",
         "-i",
         input_path,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
         "-map_metadata",
         "-1",
         "-c:v",
-        "copy",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
         "-c:a",
-        "copy",
+        "aac",
+        "-b:a",
+        "128k",
+        "-movflags",
+        "+faststart",
         output_path,
     ]
 
-    subprocess.run(
-        command,
-        check=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        timeout=180,
-    )
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=300,
+        )
+    except subprocess.CalledProcessError as exc:
+        error_text = (exc.stderr or b"").decode("utf-8", errors="ignore")
+        raise RuntimeError(
+            "Não foi possível preparar o vídeo em MP4 compatível."
+            + (f" Detalhe: {error_text[-600:]}" if error_text else "")
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("O processamento do vídeo excedeu o tempo limite.") from exc
 
-    if not os.path.exists(output_path) or os.path.getsize(output_path) < 1024:
-        raise RuntimeError("O arquivo processado ficou inválido ou vazio.")
+    validate_video_file(output_path)
 
 
 def download_direct_file(url: str, dest_path: str):
@@ -678,8 +756,10 @@ def resolve_short_url(url: str) -> str:
 def download_video_source(video_url: str, raw_path: str):
     clean_url = resolve_short_url(video_url)
     downloaded = False
+    download_errors = []
 
     hostname = (urlparse(clean_url).hostname or "").lower()
+    is_youtube = "youtube.com" in hostname or "youtu.be" in hostname
 
     if "tiktok.com" in hostname:
         downloaded = try_tikwm_download(clean_url, raw_path)
@@ -688,9 +768,21 @@ def download_video_source(video_url: str, raw_path: str):
         downloaded = try_cobalt_fallback(clean_url, raw_path)
 
     if not downloaded:
-        ydl_opts = {
+        # Não forçamos web/android. O yt-dlp atual recomenda deixar o
+        # extractor escolher os clientes padrão que estejam disponíveis
+        # sem PO Token. Forçar web/android pode provocar o erro de
+        # autenticação/bot do YouTube que vemos no servidor.
+        client_attempts = [None]
+
+        # Para YouTube, tentamos também o cliente embutido como fallback.
+        # Ele pode funcionar para vídeos que permitem incorporação sem
+        # exigir a mesma rota de autenticação dos clientes web/Android.
+        if is_youtube:
+            client_attempts.append(["web_embedded"])
+
+        base_opts = {
             "outtmpl": raw_path,
-            "format": "bestvideo+bestaudio/best",
+            "format": "bv*+ba/b",
             "merge_output_format": "mp4",
             "quiet": True,
             "ignoreerrors": False,
@@ -702,11 +794,6 @@ def download_video_source(video_url: str, raw_path: str):
             "concurrent_fragment_downloads": 2,
             "js_runtimes": {"deno": {"path": "/usr/local/bin/deno"}},
             "remote_components": {"ejs:npm"},
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["web", "android"],
-                }
-            },
             "user_agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -714,14 +801,41 @@ def download_video_source(video_url: str, raw_path: str):
             ),
         }
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([clean_url])
-            downloaded = True
-        except Exception as exc:
+        for player_clients in client_attempts:
+            try:
+                if os.path.exists(raw_path):
+                    os.remove(raw_path)
+
+                ydl_opts = dict(base_opts)
+                if player_clients:
+                    ydl_opts["extractor_args"] = {
+                        "youtube": {
+                            "player_client": player_clients,
+                        }
+                    }
+
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([clean_url])
+
+                if os.path.exists(raw_path) and os.path.getsize(raw_path) >= 1024:
+                    downloaded = True
+                    break
+
+                prefix = os.path.basename(raw_path).rsplit(".", 1)[0]
+                if any(
+                    filename.startswith(prefix)
+                    for filename in os.listdir(DOWNLOAD_DIR)
+                ):
+                    downloaded = True
+                    break
+            except Exception as exc:
+                download_errors.append(str(exc))
+
+        if not downloaded:
+            detail = download_errors[-1] if download_errors else "erro desconhecido"
             raise RuntimeError(
-                f"Não foi possível baixar este vídeo: {exc}"
-            ) from exc
+                f"Não foi possível baixar este vídeo: {detail}"
+            )
 
     actual_raw_path = raw_path
 
@@ -747,6 +861,10 @@ def download_video_source(video_url: str, raw_path: str):
         except OSError:
             pass
         raise RuntimeError("O vídeo excede o tamanho máximo permitido.")
+
+    # Falhas de origem que entregam um arquivo quebrado ou sem vídeo não
+    # podem chegar ao contador de sucesso.
+    validate_video_file(actual_raw_path)
 
     return actual_raw_path
 
