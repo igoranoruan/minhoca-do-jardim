@@ -120,17 +120,17 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                     <div class="bg-card-soft rounded-2xl p-6">
                         <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">01</div>
-                        <h3 class="font-bold text-white mb-2">Rápido</h3>
-                        <p class="text-sm text-slate-400 leading-relaxed">Cole o link e processe direto no aplicativo.</p>
+                        <h3 class="font-bold text-white mb-2">01 Cole o link</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed">Cole o link do conteúdo que você quer reutilizar.</p>
                     </div>
                     <div class="bg-card-soft rounded-2xl p-6">
                         <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">02</div>
-                        <h3 class="font-bold text-white mb-2">Arquivo preparado</h3>
-                        <p class="text-sm text-slate-400 leading-relaxed">Limpeza de metadados e processamento para gerar uma nova versão em MP4.</p>
+                        <h3 class="font-bold text-white mb-2">02 Minhoca limpa e prepara</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed">A Minhoca processa o arquivo e prepara uma nova versão em MP4.</p>
                     </div>
                     <div class="bg-card-soft rounded-2xl p-6">
                         <div class="w-10 h-10 rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center text-emerald-400 font-extrabold mb-5">03</div>
-                        <h3 class="font-bold text-white mb-2">Pronto para reutilizar</h3>
+                        <h3 class="font-bold text-white mb-2">03 Baixe e reutilize</h3>
                         <p class="text-sm text-slate-400 leading-relaxed">Baixe o arquivo e leve para seu editor para adaptar ao seu próprio formato.</p>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Processamento de vídeo</li>
                         </ul>
-                        <button onclick="abrirModalPagamento('semanal')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Assinar Semanal</button>
+                        <button onclick="abrirModalPagamento('semanal')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Comprar acesso semanal</button>
                     </div>
 
                     <div class="bg-card rounded-2xl p-6 flex flex-col border-emerald-500/70 ring-1 ring-emerald-500/50 relative">
@@ -177,7 +177,7 @@
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Processamento de vídeo</li>
                         </ul>
-                        <button onclick="abrirModalPagamento('mensal')" class="mt-7 w-full h-12 rounded-xl bg-gradient-cyber text-slate-950 font-extrabold text-sm transition-all hover:brightness-110">Assinar Mensal</button>
+                        <button onclick="abrirModalPagamento('mensal')" class="mt-7 w-full h-12 rounded-xl bg-gradient-cyber text-slate-950 font-extrabold text-sm transition-all hover:brightness-110">Comprar acesso mensal</button>
                     </div>
 
                     <div class="bg-card rounded-2xl p-6 flex flex-col">
@@ -189,20 +189,19 @@
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Downloads em lote</li>
                             <li class="flex gap-2"><i class="fa-solid fa-check text-emerald-400 mt-0.5"></i>Limpeza de metadados</li>
                         </ul>
-                        <button onclick="abrirModalPagamento('vip')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Assinar VIP Batch</button>
+                        <button onclick="abrirModalPagamento('vip')" class="mt-7 w-full h-12 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm transition-colors">Comprar acesso VIP Batch</button>
                     </div>
                 </div>
             </section>
 
-            <!-- ASSINATURA -->
+            <!-- MEU ACESSO -->
             <section id="areaAssinatura" class="hidden py-8">
                 <div class="bg-card rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <div class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Minha assinatura</div>
+                        <div class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Meu acesso</div>
                         <div id="assinaturaPlano" class="text-base font-bold text-white">—</div>
                         <div id="assinaturaStatus" class="text-sm text-slate-400 mt-1">—</div>
                     </div>
-                    <button id="cancelarButton" onclick="cancelarAssinatura()" class="hidden px-4 py-2 rounded-xl bg-slate-800 hover:bg-red-600 text-white text-xs font-bold transition-colors">Cancelar renovação</button>
                 </div>
             </section>
 
@@ -255,12 +254,12 @@
                             <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">O arquivo é baixado e processado para gerar uma nova versão em MP4, com remoção de metadados e foco em compatibilidade para edição.</div>
                         </details>
                         <details class="faq-item bg-card rounded-xl group">
-                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O Pix renova automaticamente?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
-                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Não. O Pix é um pagamento único para o período contratado.</div>
+                            <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O pagamento tem renovação automática?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Não. Todos os planos são pagos uma única vez e ficam ativos pelo período contratado. Depois da expiração, basta fazer uma nova compra se quiser continuar usando o plano.</div>
                         </details>
                         <details class="faq-item bg-card rounded-xl group">
                             <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">E o cartão?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
-                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">No cartão, a assinatura pode ter renovação automática conforme o plano. O usuário pode cancelar a renovação.</div>
+                            <div class="px-5 pb-5 text-sm text-slate-400 leading-relaxed">Não. O cartão também é um pagamento único. O acesso fica ativo pelo período contratado e não existe cobrança automática.</div>
                         </details>
                         <details class="faq-item bg-card rounded-xl group">
                             <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm font-bold text-white">O Minhoca garante que meu conteúdo não será identificado pelas plataformas?<i class="fa-solid fa-plus text-slate-500 transition-transform"></i></summary>
@@ -315,7 +314,7 @@
             <button onclick="fecharModalPagamento()" class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
             <div class="w-12 h-12 mx-auto rounded-xl bg-emerald-950/50 border border-emerald-800/50 flex items-center justify-center mb-4"><i class="fa-solid fa-wallet text-emerald-400"></i></div>
             <h3 id="modalTitulo" class="text-xl font-bold text-white text-center mb-1">Escolha como pagar</h3>
-            <p id="modalDescricao" class="text-xs text-slate-400 text-center mb-5">Escolha Pix para pagar uma vez ou cartão para ativar a renovação automática.</p>
+            <p id="modalDescricao" class="text-xs text-slate-400 text-center mb-5">Escolha Pix ou cartão. O pagamento é único e libera o período contratado após a confirmação.</p>
 
             <div class="bg-[#060b14] border border-slate-800 rounded-xl p-4 mb-4">
                 <div class="flex justify-between items-center mb-2"><span class="text-xs text-slate-500">Plano</span><strong id="modalPlano" class="text-xs text-white">—</strong></div>
@@ -323,8 +322,8 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2 mb-4">
-                <button id="metodoPixBtn" onclick="trocarMetodoPagamento('pix')" class="py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all"> <i class="fa-solid fa-qrcode mr-1"></i> PIX<span class="block text-[9px] font-medium text-slate-400 mt-0.5">Sem renovação automática</span></button>
-                <button id="metodoCartaoBtn" onclick="trocarMetodoPagamento('cartao')" class="py-3 rounded-xl border border-slate-800 bg-[#060b14] text-slate-400 text-xs font-extrabold transition-all"><i class="fa-solid fa-credit-card mr-1"></i> CARTÃO<span class="block text-[9px] font-medium text-slate-500 mt-0.5">Renovação automática</span></button>
+                <button id="metodoPixBtn" onclick="trocarMetodoPagamento('pix')" class="py-3 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-400 text-xs font-extrabold transition-all"> <i class="fa-solid fa-qrcode mr-1"></i> PIX<span class="block text-[9px] font-medium text-slate-400 mt-0.5">Pagamento único</span></button>
+                <button id="metodoCartaoBtn" onclick="trocarMetodoPagamento('cartao')" class="py-3 rounded-xl border border-slate-800 bg-[#060b14] text-slate-400 text-xs font-extrabold transition-all"><i class="fa-solid fa-credit-card mr-1"></i> CARTÃO<span class="block text-[9px] font-medium text-slate-500 mt-0.5">Pagamento único</span></button>
             </div>
 
             <div id="conteudoPix">
@@ -340,9 +339,9 @@
 
             <div id="conteudoCartao" class="hidden">
                 <div class="bg-blue-950/20 border border-blue-900/30 rounded-xl p-4 mb-4 text-left">
-                    <div class="flex items-start gap-3"><i class="fa-solid fa-credit-card text-blue-400 mt-0.5"></i><div><strong class="text-xs text-white block">Pagamento recorrente</strong><span class="text-[10px] text-slate-400 leading-relaxed">O Mercado Pago fará a cobrança conforme a frequência do plano. Você pode cancelar a renovação a qualquer momento.</span></div></div>
+                    <div class="flex items-start gap-3"><i class="fa-solid fa-credit-card text-blue-400 mt-0.5"></i><div><strong class="text-xs text-white block">Pagamento único</strong><span class="text-[10px] text-slate-400 leading-relaxed">Você paga uma única vez e recebe o acesso pelo período contratado. Depois da expiração, basta comprar novamente se quiser continuar.</span></div></div>
                 </div>
-                <button id="checkoutButton" onclick="prepararCheckoutCartao()" class="w-full py-3.5 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-xs hover:brightness-110 transition-all shadow-lg">Continuar com cartão</button>
+                <button id="checkoutButton" onclick="prepararCheckoutCartao()" class="w-full py-3.5 bg-gradient-cyber text-slate-950 font-extrabold rounded-xl text-xs hover:brightness-110 transition-all shadow-lg">Pagar com cartão</button>
                 <div id="checkoutStatus" class="mt-4 text-xs text-slate-400"></div>
             </div>
         </div>
@@ -354,12 +353,12 @@
         semanal: {
             nome: "Semanal",
             valor: "R$ 9,90",
-            descricao: "10 downloads por dia • renovação a cada 7 dias"
+            descricao: "10 downloads por dia • acesso por 7 dias"
         },
         mensal: {
             nome: "Mensal",
             valor: "R$ 16,90",
-            descricao: "30 downloads por dia • renovação mensal"
+            descricao: "30 downloads por dia • acesso por 30 dias"
         },
         vip: {
             nome: "VIP Batch",
@@ -497,11 +496,9 @@
             );
 
             const data = await res.json();
-
             const area = document.getElementById("areaAssinatura");
             const plano = document.getElementById("assinaturaPlano");
             const status = document.getElementById("assinaturaStatus");
-            const cancelar = document.getElementById("cancelarButton");
             const secaoPlanos = document.getElementById("secaoPlanos");
 
             if (!res.ok || !data.has_paid_plan) {
@@ -518,23 +515,8 @@
                 ? `${planoInfo.nome} • ${planoInfo.valor}`
                 : data.plan;
 
-            if (data.payment_type === "pix") {
-                status.textContent =
-                    `Acesso pago via Pix. Sem renovação automática. Válido até ${formatarData(data.expires_at)}.`;
-                cancelar.classList.add("hidden");
-            } else if (data.status === "cancelled") {
-                status.textContent =
-                    `Renovação cancelada. Acesso até ${formatarData(data.expires_at)}.`;
-                cancelar.classList.add("hidden");
-            } else if (data.status === "pending") {
-                status.textContent =
-                    "Assinatura criada. Finalize o checkout do Mercado Pago.";
-                cancelar.classList.add("hidden");
-            } else {
-                status.textContent =
-                    `Cartão ativo. Próxima cobrança: ${formatarData(data.next_billing_at)}.`;
-                cancelar.classList.remove("hidden");
-            }
+            status.textContent =
+                `Acesso ativo até ${formatarData(data.expires_at)}. Pagamento único, sem renovação automática.`;
         } catch (err) {
             console.error(err);
         }
@@ -715,7 +697,7 @@
         document.getElementById("checkoutStatus").textContent = "";
 
         try {
-            const res = await fetch("/api/create-subscription", {
+            const res = await fetch("/api/create-checkout", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -730,7 +712,7 @@
 
             if (!res.ok) {
                 throw new Error(
-                    data.detail || "Não foi possível preparar a assinatura."
+                    data.detail || "Não foi possível preparar o pagamento."
                 );
             }
 
@@ -747,15 +729,15 @@
 
             window.open(data.checkout_url, "_blank", "noopener,noreferrer");
             button.disabled = false;
-            button.textContent = "Abrir checkout novamente";
+            button.textContent = "Abrir pagamento novamente";
             document.getElementById("checkoutStatus").innerHTML =
-                '<span class="text-slate-400">Checkout aberto. Depois da aprovação, o acesso será reconhecido automaticamente nesta página.</span>';
+                '<span class="text-slate-400">Pagamento aberto. Depois da aprovação, o acesso será reconhecido automaticamente nesta página.</span>';
             iniciarMonitoramento();
         } catch (err) {
             button.disabled = false;
-            button.textContent = "Continuar com cartão";
+            button.textContent = "Pagar com cartão";
             document.getElementById("checkoutStatus").textContent =
-                err.message || "Erro ao preparar a assinatura.";
+                err.message || "Erro ao preparar o pagamento.";
         }
     }
 
@@ -816,51 +798,6 @@
                 document.getElementById("pixStatus").textContent =
                     "Pix Copia e Cola copiado.";
             });
-    }
-
-    async function cancelarAssinatura() {
-        const email = document.getElementById("userEmail").value.trim();
-
-        if (!emailValido(email)) {
-            alert("Informe seu e-mail primeiro.");
-            return;
-        }
-
-        const confirmou = confirm(
-            "Cancelar a renovação desta assinatura?\n\n" +
-            "Você continuará com acesso até o fim do período já pago."
-        );
-
-        if (!confirmou) return;
-
-        try {
-            const res = await fetch("/api/cancel-subscription", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    plan_type: "cancel",
-                    email: email
-                })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(
-                    data.detail || "Não foi possível cancelar."
-                );
-            }
-
-            alert(
-                `Renovação cancelada. Seu acesso continua até ${formatarData(data.expires_at)}.`
-            );
-
-            await validarEmailNoServidor(email, false);
-        } catch (err) {
-            alert(err.message || "Erro ao cancelar assinatura.");
-        }
     }
 
     async function baixarVideo() {
