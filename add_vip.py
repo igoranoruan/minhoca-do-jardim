@@ -34,6 +34,8 @@ def set_user_vip(email: str, days: int = 365):
         user.vip_until = user.expires_at
         user.cancelled_at = None
         user.subscription_id = None
+        user.payment_type = "manual"
+        user.active_transaction_id = None
         user.next_billing_at = None
 
         db.commit()

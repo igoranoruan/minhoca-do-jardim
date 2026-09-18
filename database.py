@@ -1,23 +1,13 @@
 import os
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 
-DATABASE_URL = (
-    os.getenv("DATABASE_URL", "sqlite:///./minhoca.db")
-    .strip()
-)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./minhoca.db").strip()
 
-# Render/Postgres e alguns provedores ainda podem fornecer a URL
-# com o prefixo antigo postgres://.
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace(
-        "postgres://",
-        "postgresql://",
-        1,
-    )
-
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 if DATABASE_URL.startswith("sqlite"):
     engine = create_engine(
@@ -37,28 +27,22 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
-
 Base = declarative_base()
 
 
 def get_db():
     db = SessionLocal()
-
     try:
         yield db
-
     finally:
         db.close()
 
 
 def _get_table_columns(connection, table_name: str):
-    """Retorna as colunas existentes em uma tabela SQLite."""
-
-    result = connection.execute(
-        text(f"PRAGMA table_info({table_name})")
-    )
-
-    return {row[1] for row in result.fetchall()}
+    inspector = inspect(connection)
+    if not inspector.has_table(table_name):
+        return set()
+    return {column["name"] for column in inspector.get_columns(table_name)}
 
 
 def _add_column_if_missing(
@@ -67,14 +51,7 @@ def _add_column_if_missing(
     column_name: str,
     column_definition: str,
 ):
-    """Adiciona uma coluna SQLite somente quando ela ainda não existe."""
-
-    existing_columns = _get_table_columns(
-        connection,
-        table_name,
-    )
-
-    if column_name not in existing_columns:
+    if column_name not in _get_table_columns(connection, table_name):
         connection.execute(
             text(
                 f"ALTER TABLE {table_name} "
@@ -84,17 +61,8 @@ def _add_column_if_missing(
 
 
 def init_db():
-    """
-    Cria as tabelas e aplica a migração leve usada pelo projeto.
-
-    Em PostgreSQL, o schema deve ser criado pelo SQLAlchemy e não usamos
-    PRAGMA/ALTER TABLE específico do SQLite.
-    """
-
+    """Cria tabelas e aplica migrações de colunas sem apagar dados existentes."""
     Base.metadata.create_all(bind=engine)
-
-    if engine.dialect.name != "sqlite":
-        return
 
     with engine.begin() as connection:
         # USER USAGE
@@ -108,50 +76,41 @@ def init_db():
         )
 
         # USERS
-        _add_column_if_missing(
-            connection, "users", "vip_until", "DATETIME"
-        )
+        _add_column_if_missing(connection, "users", "vip_until", "TIMESTAMP")
         _add_column_if_missing(
             connection, "users", "plan_type", "VARCHAR DEFAULT 'free'"
         )
         _add_column_if_missing(
             connection, "users", "status", "VARCHAR DEFAULT 'active'"
         )
+        _add_column_if_missing(connection, "users", "subscription_id", "VARCHAR")
+        _add_column_if_missing(connection, "users", "payment_type", "VARCHAR")
         _add_column_if_missing(
-            connection, "users", "subscription_id", "VARCHAR"
+            connection, "users", "active_transaction_id", "INTEGER"
         )
-        _add_column_if_missing(
-            connection, "users", "started_at", "DATETIME"
-        )
-        _add_column_if_missing(
-            connection, "users", "expires_at", "DATETIME"
-        )
-        _add_column_if_missing(
-            connection, "users", "next_billing_at", "DATETIME"
-        )
-        _add_column_if_missing(
-            connection, "users", "cancelled_at", "DATETIME"
-        )
-        _add_column_if_missing(
-            connection, "users", "created_at", "DATETIME"
-        )
+        _add_column_if_missing(connection, "users", "started_at", "TIMESTAMP")
+        _add_column_if_missing(connection, "users", "expires_at", "TIMESTAMP")
+        _add_column_if_missing(connection, "users", "next_billing_at", "TIMESTAMP")
+        _add_column_if_missing(connection, "users", "cancelled_at", "TIMESTAMP")
+        _add_column_if_missing(connection, "users", "created_at", "TIMESTAMP")
 
         # TRANSACTIONS
+        _add_column_if_missing(connection, "transactions", "email", "VARCHAR")
         _add_column_if_missing(
-            connection, "transactions", "email", "VARCHAR"
+            connection, "transactions", "external_reference", "VARCHAR"
         )
+        _add_column_if_missing(connection, "transactions", "plan_type", "VARCHAR")
         _add_column_if_missing(
-            connection, "transactions", "amount", "FLOAT"
+            connection, "transactions", "payment_type", "VARCHAR"
         )
+        _add_column_if_missing(connection, "transactions", "amount", "FLOAT")
         _add_column_if_missing(
             connection, "transactions", "subscription_id", "VARCHAR"
         )
         _add_column_if_missing(
-            connection, "transactions", "approved_at", "DATETIME"
+            connection, "transactions", "approved_at", "TIMESTAMP"
         )
         _add_column_if_missing(
-            connection, "transactions", "processed_at", "DATETIME"
+            connection, "transactions", "processed_at", "TIMESTAMP"
         )
-        _add_column_if_missing(
-            connection, "transactions", "created_at", "DATETIME"
-        )
+        _add_column_if_missing(connection, "transactions", "created_at", "TIMESTAMP")

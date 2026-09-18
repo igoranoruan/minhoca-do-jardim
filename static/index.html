@@ -151,8 +151,8 @@
                         <i class="fa-solid fa-pen-to-square"></i>
                     </div>
                     <div>
-                        <h3 class="font-bold text-white">Vai editar antes de publicar?</h3>
-                        <p class="text-sm text-slate-400 mt-1 leading-relaxed">Leve o arquivo para seu editor e adapte ao seu próprio formato antes de publicar.</p>
+                        <h3 class="font-bold text-white">Agora é com você.</h3>
+                        <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pegue o vídeo preparado, faça os ajustes que quiser e publique no seu próprio estilo.</p>
                     </div>
                 </div>
             </section>
@@ -479,13 +479,13 @@
                 }
             } else {
                 setStatusConta(
-                    `Gratuito: ${email} • ${data.downloads_today}/${data.daily_limit} hoje`
+                    `Gratuito: ${email} • ${data.downloads_week}/${data.weekly_limit} esta semana`
                 );
 
                 document.getElementById("secaoBatch").classList.add("hidden");
 
                 if (mostrarAlerta) {
-                    alert("E-mail ativado no plano gratuito.");
+                    alert("E-mail ativado. Você tem 5 gerações gratuitas por semana.");
                 }
             }
 
@@ -854,8 +854,8 @@
             if (!response.ok) {
                 if (response.status === 429) {
                     setStatusBox(
-                        '<p class="font-bold mb-1">Limite diário atingido.</p>' +
-                        '<p class="text-xs mb-3">Escolha um plano para continuar processando seus vídeos.</p>' +
+                        '<p class="font-bold mb-1">Limite de gerações atingido.</p>' +
+                        '<p class="text-xs mb-3">Você atingiu o limite atual. Escolha um plano para continuar processando seus vídeos.</p>' +
                         '<button onclick="document.getElementById(\'secaoPlanos\').scrollIntoView({behavior:\'smooth\'})" ' +
                         'class="py-2 px-4 bg-amber-500 text-gray-950 font-bold text-xs rounded-xl shadow-md">Ver planos</button>',
                         "warning"
@@ -899,10 +899,12 @@
             wrapper.appendChild(message);
             wrapper.appendChild(downloadButton);
 
-            if (typeof data.downloads_today === "number" && data.daily_limit != null) {
-                const textoPlano = data.plan === "free"
-                    ? `Gratuito: ${data.downloads_today}/${data.daily_limit} hoje`
-                    : `${data.plan_name || data.plan}: ${data.downloads_today}/${data.daily_limit} hoje`;
+            if (data.plan === "free" && typeof data.downloads_week === "number" && data.weekly_limit != null) {
+                setStatusConta(
+                    `Gratuito: ${data.downloads_week}/${data.weekly_limit} esta semana`
+                );
+            } else if (typeof data.downloads_today === "number" && data.daily_limit != null) {
+                const textoPlano = `${data.plan_name || data.plan}: ${data.downloads_today}/${data.daily_limit} hoje`;
                 setStatusConta(textoPlano, data.plan === "vip" ? "vip" : "normal");
             }
 

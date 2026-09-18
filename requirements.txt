@@ -8,4 +8,4 @@ jinja2
 python-multipart
 yt-dlp[default,curl-cffi]>=2026.08.19
 psycopg2-binary>=2.9.9
-bgutil-ytdlp-pot-provider
+bgutil-ytdlp-pot-provider==2.0.0

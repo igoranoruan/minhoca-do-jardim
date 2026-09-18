@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+set -eu
 
 echo "========================================"
 echo " Iniciando BGUTIL PO TOKEN PROVIDER"
@@ -19,14 +19,42 @@ deno run \
 
 POT_PID=$!
 
-echo "PO Token Provider iniciado (PID: $POT_PID)"
+cleanup() {
+    kill "$POT_PID" 2>/dev/null || true
+}
 
-cd /app
+trap cleanup EXIT INT TERM
+
+# Aguarda o provider realmente responder antes de iniciar a API.
+PROVIDER_READY=0
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ! kill -0 "$POT_PID" 2>/dev/null; then
+        break
+    fi
+
+    if curl -fsS http://127.0.0.1:4416/ >/dev/null 2>&1; then
+        PROVIDER_READY=1
+        break
+    fi
+
+    sleep 1
+done
+
+if [ "$PROVIDER_READY" -ne 1 ]; then
+    echo "ERRO: o provider de PO Token não ficou disponível na porta 4416." >&2
+    exit 1
+fi
+
+echo "PO Token Provider iniciado (PID: $POT_PID)"
 
 echo "========================================"
 echo " Iniciando Minhoca de Jardim"
 echo "========================================"
 
-trap 'kill "$POT_PID" 2>/dev/null || true' EXIT INT TERM
+cd /app
 
-exec uvicorn main:app --host 0.0.0.0 --port 8000
+exec uvicorn main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --proxy-headers \
+    --forwarded-allow-ips="*"
