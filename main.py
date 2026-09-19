@@ -7,11 +7,9 @@ import json
 import subprocess
 import unicodedata
 import zipfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
-import ipaddress
-import socket
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit, urlunsplit, parse_qsl, urlencode
 
 import requests
 import yt_dlp
@@ -29,9 +27,7 @@ load_dotenv()
 from database import engine, Base, get_db, init_db
 import models
 
-
 init_db()
-
 
 app = FastAPI(title="Minhoca de Jardim")
 
@@ -47,21 +43,13 @@ ADMIN_EMAILS = {
 }
 
 FREE_LIMIT = 5
+SAO_PAULO_TZ = ZoneInfo("America/Sao_Paulo")
 BATCH_MAX_ITEMS = 10
 MAX_URL_LENGTH = 2048
 MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
 BATCH_MAX_TOTAL_BYTES = 500 * 1024 * 1024
 MAX_FILENAME_LENGTH = 80
 CLEAN_FILE_TTL_SECONDS = 3600
-FREE_TIMEZONE = ZoneInfo("America/Sao_Paulo")
-WEBHOOK_MAX_AGE_SECONDS = 300
-
-# Servidor local do bgutil-ytdlp-pot-provider usado pelo yt-dlp no YouTube.
-# O serviço é iniciado pelo start.sh no container de produção.
-BGUTIL_POT_BASE_URL = os.getenv(
-    "BGUTIL_POT_BASE_URL",
-    "http://127.0.0.1:4416",
-).strip().rstrip("/")
 
 SUPPORTED_HOSTS = {
     "tiktok.com",
@@ -188,43 +176,7 @@ def is_valid_video_url(value: str) -> bool:
     )
 
 
-def _is_public_ip(hostname: str) -> bool:
-    try:
-        addresses = {
-            info[4][0]
-            for info in socket.getaddrinfo(
-                hostname,
-                None,
-                type=socket.SOCK_STREAM,
-            )
-        }
-    except (OSError, socket.gaierror):
-        return False
-
-    if not addresses:
-        return False
-
-    for address in addresses:
-        try:
-            ip = ipaddress.ip_address(address)
-        except ValueError:
-            return False
-
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_multicast
-            or ip.is_reserved
-            or ip.is_unspecified
-        ):
-            return False
-
-    return True
-
-
 def is_safe_remote_download_url(value: str) -> bool:
-    """Evita que URLs externas sejam usadas como SSRF."""
     try:
         parsed = urlparse(value)
     except ValueError:
@@ -241,21 +193,15 @@ def is_safe_remote_download_url(value: str) -> bool:
         "0.0.0.0",
         "127.0.0.1",
         "::1",
-        "metadata.google.internal",
     }
 
     if hostname in blocked_hosts or hostname.endswith(".local"):
         return False
 
-    try:
-        ipaddress.ip_address(hostname)
-        return _is_public_ip(hostname)
-    except ValueError:
-        return _is_public_ip(hostname)
+    return True
 
 
 def validate_video_file(file_path: str):
-    """Valida estrutura e decodificação básica do vídeo antes de liberar o arquivo."""
     if not os.path.exists(file_path) or os.path.getsize(file_path) < 1024:
         raise RuntimeError("O arquivo processado ficou inválido ou vazio.")
 
@@ -309,9 +255,6 @@ def validate_video_file(file_path: str):
     if duration <= 0:
         raise RuntimeError("O arquivo final não contém uma duração de vídeo válida.")
 
-    # O ffprobe pode enxergar uma faixa de vídeo mesmo quando o arquivo
-    # não consegue decodificar nenhum frame. Testamos um frame real antes
-    # de considerar a origem válida.
     decode_command = [
         "ffmpeg",
         "-v",
@@ -338,31 +281,12 @@ def validate_video_file(file_path: str):
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError("O arquivo contém uma faixa de vídeo, mas não foi possível decodificar um frame.") from exc
 
+
 def clean_metadata(input_path: str, output_path: str):
     """
-    Gera uma nova versão MP4, remove metadados e valida a decodificação.
-    Primeiro tenta remux sem reencodar; se a origem não for compatível,
-    usa H.264/AAC como fallback.
-    Não é uma garantia de evasão de sistemas de detecção das plataformas.
+    Gera uma nova versão MP4 compatível universalmente com iOS (iPhone) e CapCut,
+    removendo metadados e forçando perfil Main H.264 + AAC + yuv420p.
     """
-    remux_command = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        input_path,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a?",
-        "-map_metadata",
-        "-1",
-        "-c",
-        "copy",
-        "-movflags",
-        "+faststart",
-        output_path,
-    ]
-
     transcode_command = [
         "ffmpeg",
         "-y",
@@ -382,41 +306,18 @@ def clean_metadata(input_path: str, output_path: str):
         "20",
         "-pix_fmt",
         "yuv420p",
+        "-profile:v",
+        "main",
         "-c:a",
         "aac",
         "-b:a",
         "128k",
+        "-ar",
+        "44100",
         "-movflags",
         "+faststart",
         output_path,
     ]
-
-    errors = []
-
-    try:
-        subprocess.run(
-            remux_command,
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=180,
-        )
-        try:
-            validate_video_file(output_path)
-            return
-        except Exception as exc:
-            errors.append(f"remux: {exc}")
-            if os.path.exists(output_path):
-                os.remove(output_path)
-    except subprocess.CalledProcessError as exc:
-        error_text = (exc.stderr or b"").decode("utf-8", errors="ignore")
-        errors.append(f"remux: {error_text[-400:]}")
-        if os.path.exists(output_path):
-            os.remove(output_path)
-    except subprocess.TimeoutExpired:
-        errors.append("remux: tempo limite excedido.")
-        if os.path.exists(output_path):
-            os.remove(output_path)
 
     try:
         subprocess.run(
@@ -428,13 +329,12 @@ def clean_metadata(input_path: str, output_path: str):
         )
         validate_video_file(output_path)
     except subprocess.CalledProcessError as exc:
-        error_text = (exc.stderr or b"").decode("utf-8", errors="ignore")
-        errors.append(f"transcode: {error_text[-500:]}")
         if os.path.exists(output_path):
             os.remove(output_path)
+        error_text = (exc.stderr or b"").decode("utf-8", errors="ignore")
         raise RuntimeError(
             "Não foi possível preparar o vídeo em MP4 compatível."
-            + (f" Detalhe: {errors[-1]}" if errors else "")
+            + (f" Detalhe: {error_text[-600:]}" if error_text else "")
         ) from exc
     except subprocess.TimeoutExpired as exc:
         if os.path.exists(output_path):
@@ -447,6 +347,7 @@ def clean_metadata(input_path: str, output_path: str):
             "Não foi possível preparar o vídeo em MP4 compatível."
             + (f" Detalhe: {exc}" if str(exc) else "")
         ) from exc
+
 
 def download_direct_file(url: str, dest_path: str):
     if not is_safe_remote_download_url(url):
@@ -537,17 +438,10 @@ def try_tikwm_download(tiktok_url: str, dest_path: str) -> bool:
 
 
 def try_cobalt_fallback(video_url: str, dest_path: str) -> bool:
-    # Instâncias públicas do Cobalt não são uma dependência confiável para
-    # produção. Só usamos Cobalt quando uma instância autorizada é fornecida
-    # explicitamente via variável de ambiente.
     instances = [
-        item.strip().rstrip("/")
-        for item in os.getenv("COBALT_API_URLS", "").split(",")
-        if item.strip()
+        "https://cobalt-api.kwi.im",
+        "https://api.cobalt.tools",
     ]
-
-    if not instances:
-        return False
 
     headers = {
         "Accept": "application/json",
@@ -651,7 +545,6 @@ def subscription_is_active(user, now: datetime) -> bool:
     if user.expires_at and user.expires_at > now:
         return True
 
-    # Compatibilidade com clientes antigos.
     if user.vip_until and user.vip_until > now:
         return True
 
@@ -677,8 +570,17 @@ def quota_for_plan(plan_type: str):
     return PLAN_CONFIG[plan_type]["limit"]
 
 
+def get_sao_paulo_now() -> datetime:
+    return datetime.now(SAO_PAULO_TZ)
+
+
+def get_free_period_start_str() -> str:
+    local_date = get_sao_paulo_now().date()
+    monday = local_date - timedelta(days=local_date.weekday())
+    return monday.isoformat()
+
+
 def get_free_usage(db: Session, client_ip: str, period_start_str: str):
-    """Obtém o contador Free da semana atual por IP."""
     usage = (
         db.query(models.UserUsage)
         .filter(models.UserUsage.ip_address == client_ip)
@@ -705,37 +607,25 @@ def get_free_usage(db: Session, client_ip: str, period_start_str: str):
                 .first()
             )
 
-    if not usage:
-        raise RuntimeError("Não foi possível inicializar a cota gratuita.")
+    try:
+        stored_period = date.fromisoformat(usage.last_download_date)
+    except (TypeError, ValueError):
+        stored_period = None
 
-    if usage.last_download_date != period_start_str:
+    current_period = date.fromisoformat(period_start_str)
+
+    if stored_period is None or stored_period < current_period:
         usage.downloads_today = 0
         usage.reserved_today = 0
         usage.last_download_date = period_start_str
         db.commit()
         db.refresh(usage)
+    elif stored_period != current_period:
+        usage.last_download_date = period_start_str
+        db.commit()
+        db.refresh(usage)
 
     return usage
-
-
-def get_brazil_date_str(now: datetime | None = None) -> str:
-    local_now = now or datetime.now(FREE_TIMEZONE)
-    if local_now.tzinfo is None:
-        local_now = local_now.replace(tzinfo=FREE_TIMEZONE)
-    else:
-        local_now = local_now.astimezone(FREE_TIMEZONE)
-    return local_now.strftime("%Y-%m-%d")
-
-
-def get_free_period_start(now: datetime | None = None) -> str:
-    """Retorna a segunda-feira da semana atual no horário de São Paulo."""
-    local_now = now or datetime.now(FREE_TIMEZONE)
-    if local_now.tzinfo is None:
-        local_now = local_now.replace(tzinfo=FREE_TIMEZONE)
-    else:
-        local_now = local_now.astimezone(FREE_TIMEZONE)
-    monday = local_now - timedelta(days=local_now.weekday())
-    return monday.strftime("%Y-%m-%d")
 
 
 def get_plan_usage(db: Session, user_id: int, today_str: str):
@@ -781,7 +671,6 @@ def _reserve_usage_row(
     reserved_column,
     count_column,
 ):
-    """Reserva uma unidade de cota de forma atômica antes do processamento."""
     result = db.execute(
         update(usage.__class__)
         .where(usage.__class__.id == usage.id)
@@ -806,14 +695,13 @@ def reserve_quota(
     plan_type: str,
     client_ip: str,
     user,
-    period_start_str: str,
+    today_str: str,
 ):
-    """Reserva uma unidade somente quando ainda existe capacidade real."""
     if plan_type == "vip":
         return None
 
     if plan_type == "free":
-        usage = get_free_usage(db, client_ip, period_start_str)
+        usage = get_free_usage(db, client_ip, today_str)
         try:
             return _reserve_usage_row(
                 db,
@@ -825,7 +713,7 @@ def reserve_quota(
         except HTTPException:
             raise HTTPException(
                 status_code=429,
-                detail="Limite semanal do plano Free atingido (5/5).",
+                detail=f"Limite semanal do plano Free atingido ({FREE_LIMIT}/{FREE_LIMIT}).",
             )
 
     if not user:
@@ -859,7 +747,6 @@ def reserve_quota(
 
 
 def release_reserved_usage(db: Session, usage, plan_type: str):
-    """Libera uma reserva quando o processamento falha."""
     if usage is None or plan_type == "vip":
         return
 
@@ -876,7 +763,6 @@ def release_reserved_usage(db: Session, usage, plan_type: str):
 
 
 def record_successful_usage(db: Session, usage, plan_type: str):
-    """Converte a reserva em consumo confirmado após gerar o arquivo."""
     if usage is None or plan_type == "vip":
         return None
 
@@ -898,6 +784,7 @@ def record_successful_usage(db: Session, usage, plan_type: str):
     db.refresh(usage)
     return usage.downloads_today
 
+
 def resolve_short_url(url: str) -> str:
     try:
         hostname = (urlparse(url).hostname or "").lower()
@@ -907,13 +794,25 @@ def resolve_short_url(url: str) -> str:
             "vt.tiktok.com",
             "vm.tiktok.com",
         }:
-            response = requests.head(
+            headers = {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/125.0.0.0 Safari/537.36"
+                )
+            }
+            response = requests.get(
                 url,
+                headers=headers,
                 allow_redirects=True,
+                stream=True,
                 timeout=10,
             )
-            if response.url and is_valid_video_url(response.url):
-                return response.url
+            try:
+                if response.url:
+                    return response.url
+            finally:
+                response.close()
     except Exception:
         pass
 
@@ -954,13 +853,9 @@ def download_video_source(video_url: str, raw_path: str):
         if os.path.getsize(candidate_path) > MAX_DOWNLOAD_BYTES:
             raise RuntimeError("O vídeo excede o tamanho máximo permitido.")
 
-        # A validação acontece em cada fonte, e não somente no final.
-        # Assim, um arquivo quebrado retornado pelo Cobalt não impede que
-        # o yt-dlp seja tentado como próximo fallback.
         validate_video_file(candidate_path)
         return candidate_path
 
-    # TikTok continua usando o caminho que já funciona em produção.
     if is_tiktok:
         try:
             if try_tikwm_download(clean_url, raw_path):
@@ -969,9 +864,6 @@ def download_video_source(video_url: str, raw_path: str):
             download_errors.append(f"TikTok/TikWM: {exc}")
             remove_candidate()
 
-    # Para Instagram/Pinterest/YouTube, tentamos primeiro o yt-dlp.
-    # O Cobalt fica como fallback. Isso evita aceitar um arquivo Cobalt
-    # inválido e encerrar o processamento antes de testar outra origem.
     source_attempts = []
 
     if is_youtube or is_instagram or is_pinterest:
@@ -983,17 +875,15 @@ def download_video_source(video_url: str, raw_path: str):
 
     base_opts = {
         "outtmpl": raw_path,
-        "format": "bv*+ba/b",
+        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "merge_output_format": "mp4",
         "quiet": True,
         "ignoreerrors": False,
         "no_warnings": True,
         "noplaylist": True,
-        "retries": 2,
-        "fragment_retries": 2,
+        "retries": 3,
+        "fragment_retries": 3,
         "socket_timeout": 30,
-        "concurrent_fragment_downloads": 2,
-        "remote_components": {"ejs:npm"},
         "user_agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -1001,17 +891,8 @@ def download_video_source(video_url: str, raw_path: str):
         ),
     }
 
-    deno_path = "/usr/local/bin/deno"
-    if os.path.exists(deno_path):
-        base_opts["js_runtimes"] = {"deno": {"path": deno_path}}
-
-    # YouTube recebe primeiro o cliente mweb, que é o cliente recomendado
-    # atualmente quando um PO Token Provider está configurado. O provider
-    # bgutil é instalado no container e atende localmente em 127.0.0.1:4416.
-    # web_embedded permanece como fallback para vídeos que aceitam esse cliente.
-    ytdlp_clients = [None]
-    if is_youtube:
-        ytdlp_clients = [["mweb"], ["web_embedded"]]
+    # Clientes otimizados para contornar restrições do YouTube sem travar se o PO Token local falhar
+    ytdlp_clients = [["mweb"], ["android"], ["ios"], ["web"]] if is_youtube else [None]
 
     for source_type, _ in source_attempts:
         if source_type == "cobalt":
@@ -1029,22 +910,26 @@ def download_video_source(video_url: str, raw_path: str):
 
             try:
                 ydl_opts = dict(base_opts)
+                extractor_args = {}
 
                 if player_clients:
-                    ydl_opts["extractor_args"] = {
-                        "youtube": {
-                            "player_client": player_clients,
-                        }
+                    extractor_args["youtube"] = {
+                        "player_client": player_clients,
                     }
 
-                    # O plugin bgutil-ytdlp-pot-provider usa o servidor HTTP
-                    # local para gerar automaticamente o PO Token necessário
-                    # pelo cliente mweb. O endereço permanece em loopback e
-                    # não é exposto publicamente pelo servidor web.
-                    if is_youtube and player_clients == ["mweb"]:
-                        ydl_opts["extractor_args"]["youtubepot-bgutilhttp"] = {
-                            "base_url": [BGUTIL_POT_BASE_URL],
-                        }
+                    # Só injeta o servidor local se ele estiver respondendo
+                    if is_youtube and "mweb" in player_clients:
+                        try:
+                            check = requests.get("http://127.0.0.1:4416", timeout=1)
+                            if check.status_code == 200:
+                                extractor_args["youtubepot-bgutilhttp"] = {
+                                    "base_url": ["http://127.0.0.1:4416"],
+                                }
+                        except Exception:
+                            pass
+
+                if extractor_args:
+                    ydl_opts["extractor_args"] = extractor_args
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([clean_url])
@@ -1081,10 +966,10 @@ def download_video_source(video_url: str, raw_path: str):
     else:
         detail = "erro desconhecido"
 
-    print(f"[download] falha em {clean_url}: {detail}")
     raise RuntimeError(
-        f"Não foi possível baixar este vídeo. Tentativas: {detail}"
+        f"Não foi possível baixar este vídeo: {detail}"
     )
+
 
 def friendly_download_error(video_url: str, error: Exception) -> str:
     message = str(error)
@@ -1113,8 +998,6 @@ def friendly_download_error(video_url: str, error: Exception) -> str:
 
 
 def sanitize_filename(value: str | None, fallback: str = "video_minhoca") -> str:
-    """Converte o nome informado pelo usuário em um nome de arquivo seguro."""
-
     text = (value or "").strip()
     if not text:
         text = fallback
@@ -1133,8 +1016,6 @@ def sanitize_filename(value: str | None, fallback: str = "video_minhoca") -> str
 
 
 def build_output_filename(temp_id: str, requested_name: str | None = None) -> str:
-    """Mantém o UUID no caminho e usa o nome informado de forma segura."""
-
     safe_name = sanitize_filename(requested_name)
     return f"minhoca_{temp_id}_{safe_name}.mp4"
 
@@ -1151,8 +1032,6 @@ def file_path_from_download_url(download_url: str) -> str:
 
 
 def create_batch_zip(file_paths: list[tuple[str, str]]) -> str | None:
-    """Cria um ZIP com os arquivos processados, sem duplicar nomes."""
-
     if not file_paths:
         return None
 
@@ -1259,12 +1138,10 @@ def process_one_video(
 def verify_webhook_signature(request: Request, data_id: str) -> bool:
     secret = get_webhook_secret()
 
-    # Em produção, webhook sem segredo configurado deve falhar fechado.
-    # Em desenvolvimento, a exceção só pode ser habilitada explicitamente.
     if not secret:
-        return os.getenv("ALLOW_UNSIGNED_WEBHOOKS", "0") == "1" and os.getenv(
-            "ENVIRONMENT", "development"
-        ).lower() != "production"
+        if os.getenv("ENVIRONMENT", "development").lower() == "production":
+            return False
+        return True
 
     x_signature = request.headers.get("x-signature", "")
     x_request_id = request.headers.get("x-request-id", "")
@@ -1284,15 +1161,6 @@ def verify_webhook_signature(request: Request, data_id: str) -> bool:
     if not timestamp or not received_hash:
         return False
 
-    try:
-        timestamp_int = int(timestamp)
-    except ValueError:
-        return False
-
-    now_epoch = int(datetime.utcnow().timestamp())
-    if abs(now_epoch - timestamp_int) > WEBHOOK_MAX_AGE_SECONDS:
-        return False
-
     manifest = (
         f"id:{data_id};"
         f"request-id:{x_request_id};"
@@ -1305,7 +1173,10 @@ def verify_webhook_signature(request: Request, data_id: str) -> bool:
         hashlib.sha256,
     ).hexdigest()
 
-    return hmac.compare_digest(expected_hash, received_hash)
+    return hmac.compare_digest(
+        expected_hash,
+        received_hash,
+    )
 
 
 def mp_headers(token: str):
@@ -1316,12 +1187,37 @@ def mp_headers(token: str):
     }
 
 
+def normalize_checkout_url(init_point: str | None) -> str | None:
+    if not init_point:
+        return None
+
+    try:
+        parts = urlsplit(init_point)
+        query = parse_qsl(parts.query, keep_blank_values=True)
+        filtered_query = [
+            (key, value)
+            for key, value in query
+            if key.lower() != "activation"
+        ]
+
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                urlencode(filtered_query),
+                parts.fragment,
+            )
+        )
+    except Exception:
+        return init_point
+
+
 def mp_create_checkout_preference(
     email: str,
     plan_type: str,
     external_reference: str,
 ):
-    """Cria um checkout único do Mercado Pago para cartão."""
     token = get_mp_token()
 
     if not token:
@@ -1334,34 +1230,39 @@ def mp_create_checkout_preference(
         )
 
     plan = PLAN_CONFIG[plan_type]
-    base_url = get_public_base_url()
 
     payload = {
         "items": [
             {
                 "id": f"minhoca-{plan_type}",
                 "title": f"Minhoca de Jardim - Plano {plan['name']}",
-                "description": (
-                    f"Acesso por {7 if plan_type == 'semanal' else 30} dias"
-                ),
+                "description": plan["label"],
                 "quantity": 1,
                 "currency_id": "BRL",
                 "unit_price": plan["amount"],
             }
         ],
-        "payer": {"email": email},
-        "external_reference": external_reference,
-        "notification_url": f"{base_url}/api/webhook",
+        "payer": {
+            "email": email,
+        },
         "back_urls": {
-            "success": base_url,
-            "pending": base_url,
-            "failure": base_url,
+            "success": get_public_base_url(),
+            "failure": get_public_base_url(),
+            "pending": get_public_base_url(),
         },
         "auto_return": "approved",
+        "notification_url": f"{get_public_base_url()}/api/webhook",
+        "external_reference": external_reference,
+        "payment_methods": {
+            "installments": 12,
+            "excluded_payment_types": [
+                {"id": "ticket"},
+            ],
+        },
     }
 
     headers = mp_headers(token)
-    headers["X-Idempotency-Key"] = external_reference
+    headers["X-Idempotency-Key"] = str(uuid.uuid4())
 
     response = requests.post(
         "https://api.mercadopago.com/checkout/preferences",
@@ -1383,13 +1284,33 @@ def mp_create_checkout_preference(
         )
         raise HTTPException(status_code=502, detail=message)
 
-    if not data.get("id") or not data.get("init_point"):
+    checkout_url = normalize_checkout_url(
+        data.get("init_point") or data.get("sandbox_init_point")
+    )
+
+    if not data.get("id") or not checkout_url:
         raise HTTPException(
             status_code=502,
-            detail="Mercado Pago não retornou a URL do checkout.",
+            detail="Mercado Pago não retornou o checkout.",
         )
 
     return data
+
+
+def mp_get_payment(payment_id: str):
+    token = get_mp_token()
+
+    if not token:
+        raise RuntimeError("MP_ACCESS_TOKEN não configurado.")
+
+    response = requests.get(
+        f"https://api.mercadopago.com/v1/payments/{payment_id}",
+        headers=mp_headers(token),
+        timeout=20,
+    )
+
+    response.raise_for_status()
+    return response.json()
 
 
 def mp_create_pix_payment(
@@ -1397,7 +1318,6 @@ def mp_create_pix_payment(
     plan_type: str,
     external_reference: str,
 ):
-    """Cria um pagamento único via Pix pelo Checkout API."""
     token = get_mp_token()
 
     if not token:
@@ -1407,17 +1327,20 @@ def mp_create_pix_payment(
         )
 
     plan = PLAN_CONFIG[plan_type]
+
     payload = {
         "transaction_amount": plan["amount"],
         "description": f"Minhoca de Jardim - Plano {plan['name']} (Pix)",
         "payment_method_id": "pix",
         "external_reference": external_reference,
         "notification_url": f"{get_public_base_url()}/api/webhook",
-        "payer": {"email": email},
+        "payer": {
+            "email": email,
+        },
     }
 
     headers = mp_headers(token)
-    headers["X-Idempotency-Key"] = external_reference
+    headers["X-Idempotency-Key"] = str(uuid.uuid4())
 
     response = requests.post(
         "https://api.mercadopago.com/v1/payments",
@@ -1453,66 +1376,44 @@ def mp_create_pix_payment(
     return data
 
 
-def mp_get_payment(payment_id: str):
-    token = get_mp_token()
+def parse_mp_datetime(value):
+    if not value:
+        return None
 
-    if not token:
-        raise RuntimeError("MP_ACCESS_TOKEN não configurado.")
-
-    response = requests.get(
-        f"https://api.mercadopago.com/v1/payments/{payment_id}",
-        headers=mp_headers(token),
-        timeout=20,
-    )
-    response.raise_for_status()
-    return response.json()
-
-
-def revoke_user_access_for_transaction(db: Session, transaction: models.Transaction):
-    """Revoga acesso somente se a transação afetada ainda for a ativa."""
-    if not transaction or not transaction.email:
-        return False
-
-    user = get_user(db, normalize_email(transaction.email))
-    if not user:
-        return False
-
-    if user.active_transaction_id != transaction.id:
-        return False
-
-    now = datetime.utcnow()
-    user.status = "expired"
-    user.expires_at = now
-    user.vip_until = now
-    user.next_billing_at = None
-    user.cancelled_at = now
-    db.commit()
-    return True
+    try:
+        parsed = datetime.fromisoformat(
+            value.replace("Z", "+00:00")
+        )
+        if parsed.tzinfo:
+            parsed = parsed.astimezone().replace(tzinfo=None)
+        return parsed
+    except (TypeError, ValueError):
+        return None
 
 
-def activate_user_from_payment(
+def period_end_for_plan(plan_type: str, now: datetime):
+    if plan_type == "semanal":
+        return now + timedelta(days=7)
+
+    if plan_type in {"mensal", "vip"}:
+        return now + timedelta(days=30)
+
+    return None
+
+
+def activate_user_from_one_time_payment(
     db: Session,
     payment: dict,
     transaction: models.Transaction,
 ):
-    """Ativa um plano somente após confirmar o pagamento real no Mercado Pago."""
-    if not transaction or transaction.plan_type not in PLAN_CONFIG:
+    if not transaction or transaction.subscription_id:
         return False
 
-    external_reference = str(payment.get("external_reference") or "").strip()
-    if (
-        transaction.external_reference
-        and external_reference
-        and transaction.external_reference != external_reference
-    ):
-        return False
+    if transaction.status == "approved" and transaction.processed_at:
+        return True
 
-    email = transaction.email or payment.get("payer", {}).get("email")
-    if not email:
-        return False
+    email = normalize_email(transaction.email or "")
 
-    email = normalize_email(email)
-    plan_type = transaction.plan_type
     payment_amount = payment.get("transaction_amount")
     expected_amount = transaction.amount
 
@@ -1522,11 +1423,14 @@ def activate_user_from_payment(
     if abs(float(payment_amount) - float(expected_amount)) > 0.01:
         return False
 
-    if abs(float(payment_amount) - float(PLAN_CONFIG[plan_type]["amount"])) > 0.01:
-        return False
+    external_reference = str(payment.get("external_reference") or "").strip()
+    if external_reference and transaction.payment_id != external_reference:
+        if not str(transaction.payment_id).isdigit():
+            return False
 
     user = get_or_create_user(db, email)
     now = datetime.utcnow()
+
     current_access = (
         user.expires_at
         if user.expires_at and user.expires_at > now
@@ -1535,11 +1439,11 @@ def activate_user_from_payment(
 
     period_end = current_access + (
         timedelta(days=7)
-        if plan_type == "semanal"
+        if transaction.plan_type == "semanal"
         else timedelta(days=30)
     )
 
-    user.plan_type = plan_type
+    user.plan_type = transaction.plan_type
     user.status = "active"
     user.started_at = (
         user.started_at
@@ -1550,16 +1454,63 @@ def activate_user_from_payment(
     user.next_billing_at = None
     user.cancelled_at = None
     user.subscription_id = None
-    user.payment_type = transaction.payment_type or "cartao"
-    user.active_transaction_id = transaction.id
     user.vip_until = period_end
 
     db.commit()
     return True
 
 
-@app.get("/health")
+def revoke_access_for_reversed_payment(
+    db: Session,
+    transaction: models.Transaction,
+):
+    if not transaction or transaction.status != "approved":
+        return False
 
+    user = get_user(db, normalize_email(transaction.email or ""))
+    if not user:
+        return False
+
+    if user.plan_type != transaction.plan_type:
+        return False
+
+    if not transaction.approved_at:
+        return False
+
+    duration = (
+        timedelta(days=7)
+        if transaction.plan_type == "semanal"
+        else timedelta(days=30)
+    )
+    transaction_period_end = transaction.approved_at + duration
+
+    if user.expires_at and user.expires_at > transaction_period_end:
+        return False
+
+    now = datetime.utcnow()
+    user.status = "expired"
+    user.expires_at = now
+    user.vip_until = now
+    user.next_billing_at = None
+    user.cancelled_at = None
+
+    db.commit()
+    return True
+
+
+def activate_user_from_pix_payment(
+    db: Session,
+    payment: dict,
+    transaction: models.Transaction,
+):
+    return activate_user_from_one_time_payment(
+        db,
+        payment,
+        transaction,
+    )
+
+
+@app.get("/health")
 def health_check():
     return {"status": "ok"}
 
@@ -1590,8 +1541,7 @@ def process_video(
 
     client_ip = request.client.host if request.client else "unknown"
     now = datetime.utcnow()
-    today_str = get_brazil_date_str()
-    free_period_start = get_free_period_start()
+    today_str = now.strftime("%Y-%m-%d")
 
     email = None
     user = None
@@ -1605,12 +1555,18 @@ def process_video(
     else:
         plan_type = current_plan_for_user(user, now)
 
+    quota_period_str = (
+        get_free_period_start_str()
+        if plan_type == "free"
+        else today_str
+    )
+
     quota_usage = reserve_quota(
         db=db,
         plan_type=plan_type,
         client_ip=client_ip,
         user=user,
-        period_start_str=(free_period_start if plan_type == "free" else today_str),
+        today_str=quota_period_str,
     )
 
     try:
@@ -1621,8 +1577,7 @@ def process_video(
             requested_name=filename,
         )
 
-        # Só contabiliza depois que o arquivo final foi gerado.
-        downloads_count = record_successful_usage(
+        downloads_today = record_successful_usage(
             db,
             quota_usage,
             plan_type,
@@ -1639,10 +1594,10 @@ def process_video(
             "download_url": download_url,
             "filename": display_filename,
             "plan": plan_type,
-            "downloads_today": downloads_count if plan_type != "free" else None,
-            "daily_limit": quota_for_plan(plan_type) if plan_type != "free" else None,
-            "downloads_week": downloads_count if plan_type == "free" else None,
-            "weekly_limit": FREE_LIMIT if plan_type == "free" else None,
+            "downloads_today": downloads_today,
+            "daily_limit": quota_for_plan(plan_type),
+            "quota_period": "week" if plan_type == "free" else "day",
+            "quota_label": "na semana" if plan_type == "free" else "hoje",
         }
 
     except HTTPException:
@@ -1869,16 +1824,18 @@ def create_pix_payment(
         )
 
     user = get_or_create_user(db, email)
+
     if subscription_is_active(user, datetime.utcnow()):
         raise HTTPException(
             status_code=409,
             detail=(
                 "Você já possui um plano ativo. "
-                "Aguarde a expiração antes de comprar novamente."
+                "Aguarde o vencimento ou use a assinatura atual."
             ),
         )
 
     external_reference = f"minhoca-pix-{plan_type}-{uuid.uuid4().hex}"
+
     payment = mp_create_pix_payment(
         email=email,
         plan_type=plan_type,
@@ -1887,14 +1844,13 @@ def create_pix_payment(
 
     transaction = models.Transaction(
         payment_id=str(payment["id"]),
-        external_reference=external_reference,
         email=email,
         plan_type=plan_type,
-        payment_type="pix",
         status=payment.get("status", "pending"),
         amount=PLAN_CONFIG[plan_type]["amount"],
         subscription_id=None,
     )
+
     db.add(transaction)
     db.commit()
 
@@ -1914,74 +1870,6 @@ def create_pix_payment(
     }
 
 
-@app.post("/api/create-checkout")
-def create_checkout(
-    payload: SubscriptionRequest,
-    db: Session = Depends(get_db),
-):
-    """Cria checkout único para pagamento com cartão."""
-    plan_type = payload.plan_type.strip().lower()
-    email = normalize_email(payload.email)
-
-    if plan_type not in PLAN_CONFIG:
-        raise HTTPException(status_code=400, detail="Plano inválido.")
-
-    if is_admin(email):
-        raise HTTPException(
-            status_code=400,
-            detail="A conta administradora não precisa de pagamento.",
-        )
-
-    user = get_or_create_user(db, email)
-    now = datetime.utcnow()
-
-    if subscription_is_active(user, now):
-        return {
-            "status": "already_active",
-            "plan": user.plan_type,
-            "expires_at": user.expires_at.isoformat()
-            if user.expires_at
-            else None,
-        }
-
-    external_reference = f"minhoca-card-{plan_type}-{uuid.uuid4().hex}"
-    preference = mp_create_checkout_preference(
-        email=email,
-        plan_type=plan_type,
-        external_reference=external_reference,
-    )
-
-    transaction = models.Transaction(
-        payment_id=f"preference:{preference['id']}",
-        external_reference=external_reference,
-        email=email,
-        plan_type=plan_type,
-        payment_type="cartao",
-        status="pending",
-        amount=PLAN_CONFIG[plan_type]["amount"],
-        subscription_id=None,
-    )
-    db.add(transaction)
-    db.commit()
-
-    return {
-        "status": "pending",
-        "checkout_url": preference["init_point"],
-        "preference_id": str(preference["id"]),
-        "plan": plan_type,
-        "amount": PLAN_CONFIG[plan_type]["amount"],
-    }
-
-
-# Compatibilidade com frontend antigo. Esta rota também é pagamento único.
-@app.post("/api/create-subscription")
-def create_subscription_legacy(
-    payload: SubscriptionRequest,
-    db: Session = Depends(get_db),
-):
-    return create_checkout(payload, db)
-
-
 @app.get("/api/pix-status")
 def pix_status(
     payment_id: str,
@@ -1995,11 +1883,7 @@ def pix_status(
         .first()
     )
 
-    if (
-        not transaction
-        or transaction.email != clean_email
-        or transaction.payment_type != "pix"
-    ):
+    if not transaction or transaction.email != clean_email or transaction.subscription_id:
         raise HTTPException(status_code=404, detail="Pagamento Pix não encontrado.")
 
     if transaction.processed_at:
@@ -2019,13 +1903,19 @@ def pix_status(
     payment_status = payment.get("status") or transaction.status
 
     if payment_status == "approved":
-        activated = activate_user_from_payment(db, payment, transaction)
+        activated = activate_user_from_pix_payment(
+            db,
+            payment,
+            transaction,
+        )
+
         if activated:
             transaction.status = "approved"
             transaction.amount = payment.get("transaction_amount")
             transaction.approved_at = datetime.utcnow()
             transaction.processed_at = datetime.utcnow()
             db.commit()
+
     elif payment_status in {
         "rejected",
         "cancelled",
@@ -2036,13 +1926,105 @@ def pix_status(
         transaction.processed_at = datetime.utcnow()
         db.commit()
 
-        if payment_status in {"refunded", "charged_back"}:
-            revoke_user_access_for_transaction(db, transaction)
-
     return {
         "status": transaction.status,
         "approved": transaction.status == "approved",
     }
+
+
+@app.post("/api/create-checkout")
+def create_checkout(
+    payload: SubscriptionRequest,
+    db: Session = Depends(get_db),
+):
+    plan_type = payload.plan_type.strip().lower()
+    email = normalize_email(payload.email)
+
+    if plan_type not in PLAN_CONFIG:
+        raise HTTPException(status_code=400, detail="Plano inválido.")
+
+    if is_admin(email):
+        raise HTTPException(
+            status_code=400,
+            detail="A conta administradora não precisa de pagamento.",
+        )
+
+    user = get_or_create_user(db, email)
+    now = datetime.utcnow()
+
+    if subscription_is_active(user, now):
+        return {
+            "status": "already_active",
+            "plan": user.plan_type,
+            "expires_at": (
+                user.expires_at.isoformat()
+                if user.expires_at
+                else None
+            ),
+        }
+
+    external_reference = (
+        f"minhoca-checkout-{plan_type}-{uuid.uuid4().hex}"
+    )
+
+    preference = mp_create_checkout_preference(
+        email=email,
+        plan_type=plan_type,
+        external_reference=external_reference,
+    )
+
+    transaction = models.Transaction(
+        payment_id=external_reference,
+        email=email,
+        plan_type=plan_type,
+        status="pending",
+        amount=PLAN_CONFIG[plan_type]["amount"],
+        subscription_id=None,
+    )
+
+    db.add(transaction)
+    db.commit()
+
+    return {
+        "status": "pending",
+        "preference_id": str(preference["id"]),
+        "checkout_url": normalize_checkout_url(
+            preference.get("init_point") or preference.get("sandbox_init_point")
+        ),
+        "plan": plan_type,
+        "amount": PLAN_CONFIG[plan_type]["amount"],
+    }
+
+
+@app.post("/api/create-subscription")
+def create_subscription_compatibility(
+    payload: SubscriptionRequest,
+    db: Session = Depends(get_db),
+):
+    return create_checkout(payload, db)
+
+
+@app.post("/api/cancel-subscription")
+def cancel_subscription(
+    payload: SubscriptionRequest,
+    db: Session = Depends(get_db),
+):
+    email = normalize_email(payload.email)
+    user = get_user(db, email)
+
+    if not user or not subscription_is_active(user, datetime.utcnow()):
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum plano ativo encontrado para este e-mail.",
+        )
+
+    raise HTTPException(
+        status_code=409,
+        detail=(
+            "Os planos atuais são pagamentos únicos e não possuem "
+            "renovação automática para cancelar."
+        ),
+    )
 
 
 @app.post("/api/webhook")
@@ -2050,7 +2032,6 @@ async def mercado_pago_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """Recebe notificações do Mercado Pago e confirma pagamentos pela API."""
     data_id = request.query_params.get("data.id")
 
     try:
@@ -2059,19 +2040,25 @@ async def mercado_pago_webhook(
         data = {}
 
     if not data_id:
-        data_id = str(data.get("data", {}).get("id", ""))
+        data_id = str(
+            data.get("data", {}).get("id", "")
+        )
 
     if not verify_webhook_signature(request, data_id):
-        raise HTTPException(status_code=401, detail="Webhook não autenticado.")
+        raise HTTPException(
+            status_code=401,
+            detail="Webhook não autenticado.",
+        )
 
-    event_type = data.get("type") or data.get("action") or ""
+    event_type = data.get("type")
     event_id = str(data.get("id") or data_id or "")
 
-    if event_type not in {"payment", "payment.created", "payment.updated"}:
-        return {"status": "ok", "event_id": event_id, "ignored": True}
-
-    if not data_id:
-        return {"status": "ok", "event_id": event_id}
+    if event_type != "payment" or not data_id:
+        return {
+            "status": "ok",
+            "event_id": event_id,
+            "ignored": True,
+        }
 
     try:
         payment = mp_get_payment(str(data_id))
@@ -2082,50 +2069,58 @@ async def mercado_pago_webhook(
         )
 
     payment_id = str(payment.get("id") or data_id)
-    external_reference = str(payment.get("external_reference") or "").strip()
     payment_status = payment.get("status")
+    external_reference = str(
+        payment.get("external_reference") or ""
+    ).strip()
 
     transaction = (
         db.query(models.Transaction)
         .filter(models.Transaction.payment_id == payment_id)
-        .with_for_update()
         .first()
     )
 
     if not transaction and external_reference:
         transaction = (
             db.query(models.Transaction)
-            .filter(models.Transaction.external_reference == external_reference)
-            .with_for_update()
+            .filter(
+                models.Transaction.payment_id == external_reference,
+                models.Transaction.status == "pending",
+            )
             .first()
         )
 
-    if (
-        transaction
-        and transaction.processed_at
-        and transaction.status == payment_status
-    ):
-        return {"status": "ok", "duplicate": True, "event_id": event_id}
-
     if not transaction:
-        return {"status": "ok", "event_id": event_id, "ignored": True}
+        return {
+            "status": "ok",
+            "event_id": event_id,
+            "ignored": True,
+            "reason": "transaction_not_found",
+        }
 
     if payment_status == "approved":
-        if not activate_user_from_payment(db, payment, transaction):
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    "Pagamento aprovado, mas a transação não passou "
-                    "na validação do plano."
-                ),
-            )
+        if transaction.processed_at and transaction.status == "approved":
+            return {
+                "status": "ok",
+                "duplicate": True,
+                "event_id": event_id,
+            }
 
-        transaction.payment_id = payment_id
-        transaction.status = "approved"
-        transaction.amount = payment.get("transaction_amount")
-        transaction.approved_at = datetime.utcnow()
-        transaction.processed_at = datetime.utcnow()
-        db.commit()
+        activated = activate_user_from_one_time_payment(
+            db,
+            payment,
+            transaction,
+        )
+
+        if activated:
+            transaction.payment_id = payment_id
+            transaction.status = "approved"
+            transaction.amount = payment.get("transaction_amount")
+            transaction.approved_at = (
+                transaction.approved_at or datetime.utcnow()
+            )
+            transaction.processed_at = datetime.utcnow()
+            db.commit()
 
     elif payment_status in {
         "rejected",
@@ -2133,18 +2128,28 @@ async def mercado_pago_webhook(
         "refunded",
         "charged_back",
     }:
-        transaction.payment_id = payment_id
+        if transaction.processed_at and transaction.status == payment_status:
+            return {
+                "status": "ok",
+                "duplicate": True,
+                "event_id": event_id,
+            }
+
+        was_approved = transaction.status == "approved"
         transaction.status = payment_status
         transaction.processed_at = datetime.utcnow()
         db.commit()
 
-        if payment_status in {"refunded", "charged_back"}:
-            revoke_user_access_for_transaction(db, transaction)
-    else:
-        transaction.status = payment_status or transaction.status
-        db.commit()
+        if was_approved and payment_status in {"refunded", "charged_back"}:
+            revoke_access_for_reversed_payment(
+                db,
+                transaction,
+            )
 
-    return {"status": "ok", "event_id": event_id}
+    return {
+        "status": "ok",
+        "event_id": event_id,
+    }
 
 
 @app.get("/api/check-email")
@@ -2156,8 +2161,7 @@ def check_email_status(
     clean_email = normalize_email(email)
     now = datetime.utcnow()
     client_ip = request.client.host if request.client else "unknown"
-    today_str = get_brazil_date_str()
-    free_period_start = get_free_period_start()
+    today_str = now.strftime("%Y-%m-%d")
 
     if is_admin(clean_email):
         return {
@@ -2167,8 +2171,6 @@ def check_email_status(
             "plan_name": "VIP Batch",
             "downloads_today": None,
             "daily_limit": None,
-            "downloads_week": None,
-            "weekly_limit": None,
             "expires_at": None,
             "subscription_status": "active",
         }
@@ -2190,13 +2192,15 @@ def check_email_status(
             "plan_name": PLAN_CONFIG[plan_type]["name"],
             "downloads_today": usage.downloads_today,
             "daily_limit": PLAN_CONFIG[plan_type]["limit"],
+            "quota_period": "day",
+            "quota_label": "hoje",
             "expires_at": (
                 user.expires_at.isoformat()
                 if user.expires_at
                 else None
             ),
             "subscription_status": user.status,
-            "payment_type": user.payment_type or ("cartao" if user.subscription_id else "pix"),
+            "payment_type": "pagamento_unico",
             "cancelled_at": (
                 user.cancelled_at.isoformat()
                 if user.cancelled_at
@@ -2204,6 +2208,7 @@ def check_email_status(
             ),
         }
 
+    free_period_start = get_free_period_start_str()
     usage = get_free_usage(
         db,
         client_ip,
@@ -2215,11 +2220,10 @@ def check_email_status(
         "is_vip": False,
         "plan": "free",
         "plan_name": "Gratuito",
-        "downloads_today": None,
-        "daily_limit": None,
-        "downloads_week": usage.downloads_today,
-        "weekly_limit": FREE_LIMIT,
-        "period_label": "esta semana",
+        "downloads_today": usage.downloads_today,
+        "daily_limit": FREE_LIMIT,
+        "quota_period": "week",
+        "quota_label": "na semana",
         "expires_at": None,
         "subscription_status": "active",
     }
@@ -2235,21 +2239,38 @@ def get_subscription(
     now = datetime.utcnow()
 
     if not user:
-        return {"has_subscription": False, "has_paid_plan": False, "plan": "free"}
+        return {
+            "has_subscription": False,
+            "has_paid_plan": False,
+            "plan": "free",
+        }
 
     plan_type = current_plan_for_user(user, now)
+
     if plan_type not in PLAN_CONFIG:
-        return {"has_subscription": False, "has_paid_plan": False, "plan": "free"}
+        return {
+            "has_subscription": False,
+            "has_paid_plan": False,
+            "plan": "free",
+        }
 
     return {
         "has_subscription": False,
         "has_paid_plan": True,
-        "payment_type": user.payment_type or ("cartao" if user.subscription_id else "pix"),
+        "payment_type": "pagamento_unico",
         "plan": plan_type,
         "status": user.status,
         "subscription_id": None,
-        "started_at": user.started_at.isoformat() if user.started_at else None,
-        "expires_at": user.expires_at.isoformat() if user.expires_at else None,
+        "started_at": (
+            user.started_at.isoformat()
+            if user.started_at
+            else None
+        ),
+        "expires_at": (
+            user.expires_at.isoformat()
+            if user.expires_at
+            else None
+        ),
         "next_billing_at": None,
         "cancelled_at": None,
     }
