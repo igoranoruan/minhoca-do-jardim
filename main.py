@@ -284,12 +284,58 @@ def validate_video_file(file_path: str):
 
 def clean_metadata(input_path: str, output_path: str):
     """
-    Gera uma nova versão MP4 compatível universalmente com iOS (iPhone) e CapCut,
-    removendo metadados e forçando perfil Main H.264 + AAC + yuv420p.
+    Prepara o MP4 removendo metadados sem reencodar quando possível.
+
+    O remux é a primeira opção porque é muito mais leve em CPU e memória.
+    Se o arquivo não puder ser remuxado/validado, usamos uma transcodificação
+    H.264/AAC com apenas uma thread para caber no limite de memória do Render.
     """
+    remux_command = [
+        "ffmpeg",
+        "-y",
+        "-threads",
+        "1",
+        "-i",
+        input_path,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        "-map_metadata",
+        "-1",
+        "-c",
+        "copy",
+        "-movflags",
+        "+faststart",
+        output_path,
+    ]
+
+    try:
+        subprocess.run(
+            remux_command,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=120,
+        )
+        validate_video_file(output_path)
+        return
+    except Exception:
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
+
     transcode_command = [
         "ffmpeg",
         "-y",
+        "-threads",
+        "1",
+        "-filter_threads",
+        "1",
+        "-filter_complex_threads",
+        "1",
         "-i",
         input_path,
         "-map",
@@ -308,6 +354,8 @@ def clean_metadata(input_path: str, output_path: str):
         "yuv420p",
         "-profile:v",
         "main",
+        "-threads",
+        "1",
         "-c:a",
         "aac",
         "-b:a",
@@ -330,7 +378,10 @@ def clean_metadata(input_path: str, output_path: str):
         validate_video_file(output_path)
     except subprocess.CalledProcessError as exc:
         if os.path.exists(output_path):
-            os.remove(output_path)
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
         error_text = (exc.stderr or b"").decode("utf-8", errors="ignore")
         raise RuntimeError(
             "Não foi possível preparar o vídeo em MP4 compatível."
@@ -338,11 +389,17 @@ def clean_metadata(input_path: str, output_path: str):
         ) from exc
     except subprocess.TimeoutExpired as exc:
         if os.path.exists(output_path):
-            os.remove(output_path)
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
         raise RuntimeError("O processamento do vídeo excedeu o tempo limite.") from exc
     except Exception as exc:
         if os.path.exists(output_path):
-            os.remove(output_path)
+            try:
+                os.remove(output_path)
+            except OSError:
+                pass
         raise RuntimeError(
             "Não foi possível preparar o vídeo em MP4 compatível."
             + (f" Detalhe: {exc}" if str(exc) else "")
@@ -875,8 +932,11 @@ def download_video_source(video_url: str, raw_path: str):
 
     base_opts = {
         "outtmpl": raw_path,
-        "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        # Prefere um único arquivo MP4 para evitar o merge de vídeo+áudio
+        # quando a plataforma já oferece uma mídia pronta. Isso reduz RAM.
+        "format": "best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
         "merge_output_format": "mp4",
+        "ffmpeg_location": "/usr/bin/ffmpeg",
         "quiet": True,
         "ignoreerrors": False,
         "no_warnings": True,
@@ -917,16 +977,14 @@ def download_video_source(video_url: str, raw_path: str):
                         "player_client": player_clients,
                     }
 
-                    # Só injeta o servidor local se ele estiver respondendo
+                    # O start.sh só inicia o FastAPI depois que o BGUTIL responde.
+                    # Portanto, não precisamos fazer um health-check aqui; o teste
+                    # anterior consultava / em vez de /ping e podia deixar o provider
+                    # fora do extractor_args mesmo estando operacional.
                     if is_youtube and "mweb" in player_clients:
-                        try:
-                            check = requests.get("http://127.0.0.1:4416", timeout=1)
-                            if check.status_code == 200:
-                                extractor_args["youtubepot-bgutilhttp"] = {
-                                    "base_url": ["http://127.0.0.1:4416"],
-                                }
-                        except Exception:
-                            pass
+                        extractor_args["youtubepot-bgutilhttp"] = {
+                            "base_url": ["http://127.0.0.1:4416"],
+                        }
 
                 if extractor_args:
                     ydl_opts["extractor_args"] = extractor_args
